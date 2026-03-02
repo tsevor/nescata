@@ -54,6 +54,7 @@ public:
 	
 	Cart();
 	Cart(std::string fName);
+	Cart(uint8_t* fileData); // for future plans, undefined at the moment
 
 	uint8_t read(uint16_t addr);
 	void write(uint16_t addr, uint8_t val);
