@@ -30,7 +30,7 @@ public:
 
 	std::vector<std::array<uint8_t, 0x4000>> prgBanks;
 	std::vector<std::array<uint8_t, 0x2000>> chrBanks;
-	
+
 	Mapper* mapper = nullptr;
 
 	uint8_t header[16];
@@ -51,7 +51,7 @@ public:
 	int iNESVersion = 1;
 
 	int trainerSize = 0;
-	
+
 	Cart();
 	Cart(std::string fName);
 	Cart(uint8_t* fileData); // for future plans, undefined at the moment

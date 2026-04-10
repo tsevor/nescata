@@ -3,7 +3,7 @@
 #include "ppu.hpp"
 
 Composite::Composite() {
-	
+
 }
 
 
@@ -18,7 +18,7 @@ void Composite::renderScanline(int scanline) {
 	if (scanline < 0 || scanline >= 240) {
 		return;
 	}
-	
+
 	// actual bg color
 	uint32_t bgColorIdx = ppu->palette[0] & 0x3F; // get background color index from palette
 	uint32_t bgColor = defaultARGBpal[bgColorIdx]; // get ARGB color from palette
@@ -144,7 +144,7 @@ void Composite::renderSpritesAtLine(int scanline, int priority, uint32_t* lineBu
 
 		int y = scanline - spriteY;
 		if (y < 0 || y >= 8) continue; // tile not on this line
-	
+
 		int spriteX = ppu->oam.sprites[s].x;
 		int spriteIdx = ppu->oam.sprites[s].tileIdx;
 		uint8_t attributes = ppu->oam.sprites[s].attr;

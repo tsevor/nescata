@@ -17,11 +17,11 @@ class Window {
 private:
 	bool keep_window_open = true;
 	int64_t timeAlive = 0;
-	
+
 	SDL_Window* window = nullptr;
 	SDL_Renderer* renderer = nullptr;
 	SDL_Texture* texture = nullptr; // Used for the emulator framebuffer
-	
+
 	SDL_AudioDeviceID audio_device = 0;
 	SDL_AudioSpec audio_spec;
 	std::queue<std::vector<uint8_t>> audio_queue;
@@ -45,8 +45,8 @@ public:
 
 	// Note: getPixel is very slow on Renderers and is rarely needed for rendering logic.
 	// It is kept for compatibility but should be avoided.
-	uint32_t getPixel(int x, int y); 
-	
+	uint32_t getPixel(int x, int y);
+
 	void drawPixel(int x, int y, uint32_t color);
 	void drawBuffer(uint32_t* buffer);
 	void setLogicalSize(int width, int height);

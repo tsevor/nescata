@@ -15,7 +15,7 @@ private:
 	// Registers
 	// Control: Mirroring, PRG/CHR Bank Modes
 	uint8_t control = 0x0C; // Power-on: 4KB CHR, Fix Last PRG
-	
+
 	// Data Registers
 	uint8_t chrBank0 = 0;
 	uint8_t chrBank1 = 0;
@@ -52,7 +52,7 @@ public:
 	void reset() override {
 		shiftReg = 0;
 		shiftCount = 0;
-		control = 0x0C; 
+		control = 0x0C;
 		chrBank0 = 0;
 		chrBank1 = 0;
 		prgBank = 0;
@@ -71,10 +71,10 @@ public:
 		// PRG ROM
 		if (addr >= 0x8000) {
 			int bankIdx = (addr < 0xC000) ? prgBankIdx8000 : prgBankIdxC000;
-			
+
 			// Safety mask to keep index within vector size
 			if (prgBankCount > 0) bankIdx %= prgBankCount;
-			
+
 			return cart->prgBanks[bankIdx][addr & 0x3FFF];
 		}
 		return 0;
@@ -109,7 +109,7 @@ public:
 						case 2: chrBank1 = shiftReg; break; // $C000 CHR 1
 						case 3: prgBank = shiftReg;  break; // $E000 PRG
 					}
-					
+
 					// Clear shift
 					shiftReg = 0;
 					shiftCount = 0;
@@ -122,11 +122,11 @@ public:
 	uint8_t readChr(uint16_t addr) override {
 		// Resolve the 4KB chunk index
 		int bank4k = (addr < 0x1000) ? chrBankIdx0000 : chrBankIdx1000;
-		
+
 		// The cart vector holds 8KB chunks. We need to split them logic-wise.
 		// Vector Index = bank4k / 2
 		// Offset = (bank4k % 2) * 4096
-		
+
 		// If using CHR RAM (bank count 0 -> we added 1 in constructor),
 		// we just map to the first available bank usually.
 		int vecIdx = bank4k / 2;
@@ -174,7 +174,7 @@ private:
 		int pIdx = prgBank & 0x0F; // 4-bit bank select (support 256k)
 
 		// Bit 4 of PRG Register is usually WRAM Enable (0=Enable)
-		prgRamEnabled = (prgBank & 0x10) == 0; 
+		prgRamEnabled = (prgBank & 0x10) == 0;
 
 		if (mode <= 1) {
 			// 32KB Mode

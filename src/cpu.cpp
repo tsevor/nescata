@@ -202,7 +202,7 @@ void CPU::_branch(bool condition) {
 		if ((pc & 0xFF00) != (target_addr & 0xFF00)) {
 			cycles++;
 		}
-		
+
 		pc = target_addr;
 	}
 }
@@ -228,7 +228,7 @@ void CPU::_interrupt(CPU::InterruptVector vec) {
 		flags_to_push &= ~(1 << 4);
 	}
 
-	flags_to_push |= (1 << 5); 
+	flags_to_push |= (1 << 5);
 
 	push(flags_to_push);
 
@@ -824,7 +824,7 @@ bool CPU::clock() {
 		opcodeBytes[0] = readMem(instrPc);
 		opcodeBytes[1] = readMem(instrPc + 1);
 		opcodeBytes[2] = readMem(instrPc + 2);
-		
+
 		// Determine byte count from the addressing mode table
 		auto mode = OPCODE_ADDRESSING_MAP[opcode];
 		size_t byteCount = 1;

@@ -35,7 +35,7 @@ int Window::StartWindow() {
 	// The renderer will act as if the screen is 256x240.
 	// SDL will automatically scale this up to the actual window size (WIDTH * PIXEL_SCALE).
 	SDL_RenderSetLogicalSize(renderer, WIDTH, HEIGHT);
-	
+
 	// Enable Alpha Blending (replaces helper compositeColors)
 	SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
@@ -91,7 +91,7 @@ void Window::updateSurface(double emulationSpeed) {
 
 	// Present the backbuffer to the screen
 	SDL_RenderPresent(renderer);
-	
+
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderClear(renderer);
 }
@@ -105,7 +105,7 @@ void Window::closeWindow() {
 }
 
 void Window::waitForVsync() {
-	// SDL_RENDERER_PRESENTVSYNC in StartWindow handles this generally, 
+	// SDL_RENDERER_PRESENTVSYNC in StartWindow handles this generally,
 	// but manual waiting can stay empty or use SDL_Delay logic.
 }
 
@@ -129,7 +129,7 @@ void Window::fillRect(int x, int y, int w, int h, uint32_t color) {
 	rect.y = y;
 	rect.w = w;
 	rect.h = h;
-	
+
 	setRenderColor(color);
 	SDL_RenderFillRect(renderer, &rect);
 }
@@ -142,13 +142,13 @@ void Window::fillScreen(uint32_t color) {
 uint32_t Window::getPixel(int x, int y) {
 	// WARNING: Reading pixels from a hardware renderer is extremely slow (stall).
 	// This functionality is deprecated in a Renderer workflow.
-	
+
 	void* pixels = malloc(sizeof(uint32_t) * 1);
 	SDL_Rect rect = { x, y, 1, 1 };
-	
+
 	// We must read into the format we expect (ARGB8888)
 	SDL_RenderReadPixels(renderer, &rect, SDL_PIXELFORMAT_ARGB8888, pixels, sizeof(uint32_t));
-	
+
 	uint32_t color = *(uint32_t*)pixels;
 	free(pixels);
 	return color;
@@ -157,7 +157,7 @@ uint32_t Window::getPixel(int x, int y) {
 void Window::drawPixel(int x, int y, uint32_t color) {
 	// Logic for Alpha Blending is now handled by SDL_SetRenderDrawBlendMode
 	// set in StartWindow. We don't need manual composition or getPixel.
-	
+
 	setRenderColor(color);
 	SDL_RenderDrawPoint(renderer, x, y);
 }
@@ -171,7 +171,7 @@ void Window::drawBuffer(uint32_t* buffer) {
 	// 256 * sizeof(uint32_t) is the pitch (bytes per row)
 	SDL_UpdateTexture(texture, nullptr, buffer, 256 * sizeof(uint32_t));
 
-	// Copy the texture to the renderer. 
+	// Copy the texture to the renderer.
 	// passing nullptr for source/dest rects uses the full texture and fills the logical screen
 	SDL_RenderCopy(renderer, texture, nullptr, nullptr);
 }
@@ -189,7 +189,7 @@ bool Window::initAudio(int frequency, uint16_t format, int channels, int samples
 	wanted.format = format;
 	wanted.channels = channels;
 	wanted.samples = samples;
-	wanted.callback = nullptr; 
+	wanted.callback = nullptr;
 	wanted.userdata = nullptr;
 
 	audio_device = SDL_OpenAudioDevice(nullptr, 0, &wanted, &audio_spec, 0);
@@ -240,13 +240,13 @@ void Window::drawText(int x, int y, const std::string& text, uint32_t textColor)
 	int px = x;
 	for (char c : text) {
 		uint8_t code = static_cast<uint8_t>(c);
-		
+
 		if (code == '\n') {
 			px = x;
 			y += 8;
 			continue;
 		}
-		
+
 		if (code < 32 || code > 127) code = 32;
 		const uint8_t* glyph = font6x8[code - 32];
 
@@ -263,6 +263,6 @@ void Window::drawText(int x, int y, const std::string& text, uint32_t textColor)
 			}
 		}
 
-		px += 6; 
+		px += 6;
 	}
 }

@@ -18,7 +18,7 @@ private:
 public:
 	Composite();
 
-	
+
 
 	void renderScanline(int scanline);
 

@@ -74,7 +74,7 @@ private:
 		2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, // E
 		2, 5, 0, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, // F
 	};
-	
+
 	inline static const char* OPCODE_MNEMONIC_MAP[256] = {
 	//  0      1      2      3      4      5      6      7      8      9      A      B      C      D      E      F
 		"BRK", "ORA", "JAM", "SLO", "NOP", "ORA", "ASL", "SLO", "PHP", "ORA", "ASL", "ANC", "NOP", "ORA", "ASL", "SLO",
@@ -94,7 +94,7 @@ private:
 		"CPX", "SBC", "NOP", "ISC", "CPX", "SBC", "INC", "ISC", "INX", "SBC", "NOP", "USB", "CPX", "SBC", "INC", "ISC",
 		"BEQ", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC", "SED", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC",
 	};
-	
+
 	inline static const AddressingMode OPCODE_ADDRESSING_MAP[256] = {
 	//  0    1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
 		IMP, INX, IMP, INX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS, // 0
@@ -135,20 +135,20 @@ private:
 	Bus* bus;
 
 	// STATE
-	
+
 	long int cycles;
 	bool enableCpuLog = false;
-	
+
 	bool pageCrossed;
-	
+
 public:
 
 	bool jammed = false;
-	
+
 	CPU();
 	void reset();
 	void powerOn();
-	
+
 	// MEMORY INTERFACING
 
 	uint8_t readMem(uint16_t addr);
@@ -169,7 +169,7 @@ public:
 	void setJammed(bool jammed);
 	long int getCycles();
 	void enableLogging(bool enable);
-	
+
 	void connectBus(Bus* busRef);
 	void disconnectBus();
 

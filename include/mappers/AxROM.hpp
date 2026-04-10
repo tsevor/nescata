@@ -85,7 +85,7 @@ public:
 
 	int mirrorNametable(int ntIdx) override {
 		// Single Screen Mirroring.
-		// Regardless of the virtual nametable index (0-3), 
+		// Regardless of the virtual nametable index (0-3),
 		// we return the physical page set by the register (0 or 1).
 		return mirrorPage;
 	}

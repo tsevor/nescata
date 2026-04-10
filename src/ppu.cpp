@@ -38,11 +38,11 @@ bool PPU::step(int cycles) {
 	if (MASKshowSprites() && oam.sprites[0].y <= scanline && oam.sprites[0].y + 8 > scanline && oam.sprites[0].x <= dot) {
 		// now check if the sprite has any pixels in the row
 		// copied from composite sprite rendering
-		
+
 		int spriteY = oam.sprites[0].y + 1;
 
 		int y = scanline - spriteY;
-	
+
 		int spriteX = oam.sprites[0].x;
 		int spriteIdx = oam.sprites[0].tileIdx;
 		uint8_t attributes = oam.sprites[0].attr;

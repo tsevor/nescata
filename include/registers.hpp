@@ -60,7 +60,7 @@ union PPUADDR {
 	struct {
 		uint16_t value : 14; // Full 14-bit address
 		uint8_t unused2 : 2; // Unused to line up to the byte
-	};	
+	};
 };
 
 union OAM {
@@ -70,6 +70,6 @@ union OAM {
 		uint8_t attr : 8;
 		uint8_t x : 8;
 	} sprites[64];
-	
+
 	uint8_t raw[256];
 };

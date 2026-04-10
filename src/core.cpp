@@ -18,7 +18,7 @@ void Core::run() {
 			std::cerr << "Failed to start window!" << std::endl;
 			return;
 		}
-		
+
 	}
 
 	cpu.powerOn();
@@ -173,7 +173,7 @@ void Core::handleKeyboardEvent(SDL_KeyboardEvent keyEvent) {
 				addMessage(". - Sprint while held", 0xFFFFFF00);
 				addMessage("+ - Increase Emulation Speed", 0xFFFFFF00);
 				addMessage("- - Decrease Emulation Speed", 0xFFFFFF00);
-				addMessage("; - Command line mode", 0xFFFFFF00); 
+				addMessage("; - Command line mode", 0xFFFFFF00);
 			}
 			break;
 		case SDLK_SEMICOLON:
