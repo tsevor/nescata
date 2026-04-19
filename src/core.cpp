@@ -23,6 +23,7 @@ void Core::run() {
 
 	cpu.powerOn();
 	cpu.reset();
+
 	while (true) {
 		if (paused || emulationSpeed == 0.0) {
 			// paused
@@ -295,25 +296,25 @@ std::string Core::getStrInput(std::string prompt) {
 	inputString.clear();
 	addMessage(prompt, 0xFFFFFF00, -1);
 	inputPrompt = prompt;
-	
+
 	SDL_StartTextInput();
-	
+
 	SDL_PumpEvents();
-	
+
 	SDL_FlushEvent(SDL_TEXTINPUT);
-	
+
 	while (awaitingTextInput) {
-		SDL_Delay(16); 
-		
+		SDL_Delay(16);
+
 		uint32_t* frameBuffer = comp.getBuffer();
 		if (frameBuffer) window.drawBuffer(frameBuffer);
-		
+
 		renderMessages();
-		
+
 		handleWindowEvents();
 		window.updateSurface(1.0);
 	}
-	
+
 	dismissMessage();
 	return inputString;
 }
@@ -587,7 +588,7 @@ void Core::addGameGenieCheat(std::string cheatCode) {
 		addMessage("Code must be 6 characters!", 0xFFFF0000);
 		return;
 	}
-	
+
 	// Convert string characters to their 4-bit integer values (C0 through C5)
 	uint8_t C0 = gGCharToHex(cheatCode[0]);
 	uint8_t C1 = gGCharToHex(cheatCode[1]);
@@ -595,13 +596,13 @@ void Core::addGameGenieCheat(std::string cheatCode) {
 	uint8_t C3 = gGCharToHex(cheatCode[3]);
 	uint8_t C4 = gGCharToHex(cheatCode[4]);
 	uint8_t C5 = gGCharToHex(cheatCode[5]);
-	
+
 	if (C0 == 0xFF || C1 == 0xFF || C2 == 0xFF ||
 		C3 == 0xFF || C4 == 0xFF || C5 == 0xFF) {
 		addMessage("Invalid code!", 0xFFFF0000);
 		return;
 	}
-	
+
 	// Decode the Address (15-bit value starting at 0x8000)
 	// Formula: 0x8000 + ((C3&7)<<12) | ((C5&7)<<8) | ((C4&8)<<8) | ((C2&7)<<4) | ((C1&8)<<4) | (C4&7) | (C3&8)
 	uint16_t addr = 0x8000 |
@@ -612,7 +613,7 @@ void Core::addGameGenieCheat(std::string cheatCode) {
 		((C1 & 8) << 4)  |
 		(C4 & 7)         |
 		(C3 & 8);
-	
+
 	// Decode the Value (8-bit replacement data)
 	// Formula: ((C1&7)<<4) | ((C0&8)<<4) | (C0&7) | (C5&8)
 	uint8_t val =
@@ -620,7 +621,7 @@ void Core::addGameGenieCheat(std::string cheatCode) {
 		((C0 & 8) << 4)  |
 		(C0 & 7)         |
 		(C5 & 8);
-	
+
 	addCheat(addr, val);
 	std::ostringstream oss;
 	oss << "Cheat at 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << addr
@@ -634,7 +635,7 @@ void Core::addCheat(uint16_t addr, uint8_t val) {
 }
 
 void Core::connectCart(Cart* cart) {
-	
+
 	if (cart->loadStatus != Cart::LOAD_SUCCESS) {
 		switch (cart->loadStatus) {
 			case Cart::LOAD_FILE_NOT_FOUND:
@@ -661,15 +662,15 @@ void Core::connectCart(Cart* cart) {
 	if (this->cart) {
 		delete this->cart;
 	}
-	
+
 	// connect new cart
 	this->cart = cart;
 	bus.connectCart(cart);
 	comp.connectCart(cart);
 	ppu.connectCart(cart);
-	
+
 	addMessage("ROM loaded: " + cart->filename, 0xFF00FF00);
-	
+
 	// fullReset();
 	// dont reset, leave that to user
 }
@@ -698,12 +699,12 @@ void Core::randomizeMemory(int numBytes) {
 	std::mt19937 gen(rd()); // Seed the generator
 	std::uniform_int_distribution<uint16_t> addr_dist(0, 0xFFFF); // Distribution for 16-bit addresses
 	std::uniform_int_distribution<uint8_t> value_dist(0, 0xFF);   // Distribution for 8-bit values
-	
+
 	for (int i = 0; i < numBytes; ++i) {
 		uint16_t addr = addr_dist(gen);
 		uint8_t value = value_dist(gen);
 		bus.write(addr, value);
 	}
-	
+
 	addMessage("Randomized!", 0xFFFFFF00);
 }

@@ -87,7 +87,7 @@ void Bus::write(uint16_t addr, uint8_t val) {
 			write(0x2000 | (addr & 0x7), val);
 			break;
 		case 0x4000 ... 0x4013: // APU/IO registers
-			// APU/IO write logic here
+			if (apu) apu->write(addr, val);
 			break;
 		case 0x4014: // OAM DMA
 			if (ppu) {
@@ -100,7 +100,7 @@ void Bus::write(uint16_t addr, uint8_t val) {
 			}
 			break;
 		case 0x4015:
-			// APU status write logic here
+			if (apu) apu->write(addr, val);
 			break;
 		case 0x4016:
 			if (controller1) controller1->write(val);
@@ -121,7 +121,7 @@ void Bus::write(uint16_t addr, uint8_t val) {
 bool Bus::clock(int cycles) {
 	// cpu sends in cycles passed * 12 to get master clock cycles
 	if (apu) {
-		apu->step(cycles);
+		apu->step(cycles / 12);
 	}
 	// do ppu last to pass nmi
 	if (ppu) {
