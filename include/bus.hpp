@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <map>
+#include <unordered_map>
 
 // Forward declarations
 class APU;
@@ -12,7 +12,7 @@ class Controller;
 
 class Bus {
 private:
-	uint8_t memory [0x800]; // 2KB internal memory
+	uint8_t memory[0x800]; // 2KB internal memory
 
 	APU* apu = nullptr;
 	PPU* ppu = nullptr;
@@ -21,7 +21,7 @@ private:
 	Controller* controller2 = nullptr;
 public:
 
-	std::map<uint16_t, uint8_t> cheats;
+	std::unordered_map<uint16_t, uint8_t> cheats;
 
 	Bus();
 

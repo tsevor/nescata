@@ -561,67 +561,67 @@ void Core::commandLoadROM(std::string filename) {
 
 uint8_t Core::gGCharToHex(char c) {
 	c = toupper(c);
-    switch (c) {
-        case 'A': return 0x0;
-        case 'P': return 0x1;
-        case 'Z': return 0x2;
-        case 'L': return 0x3;
-        case 'G': return 0x4;
-        case 'I': return 0x5;
-        case 'E': return 0x6;
-        case 'Y': return 0x7;
-        case 'X': return 0x8;
-        case 'U': return 0x9;
-        case 'K': return 0xA;
-        case 'O': return 0xB;
-        case 'T': return 0xC;
-        case 'V': return 0xD;
-        case 'S': return 0xE;
-        case 'N': return 0xF;
-        default: return 0xFF; // Error case
-    }
+	switch (c) {
+		case 'A': return 0x0;
+		case 'P': return 0x1;
+		case 'Z': return 0x2;
+		case 'L': return 0x3;
+		case 'G': return 0x4;
+		case 'I': return 0x5;
+		case 'E': return 0x6;
+		case 'Y': return 0x7;
+		case 'X': return 0x8;
+		case 'U': return 0x9;
+		case 'K': return 0xA;
+		case 'O': return 0xB;
+		case 'T': return 0xC;
+		case 'V': return 0xD;
+		case 'S': return 0xE;
+		case 'N': return 0xF;
+		default: return 0xFF; // Error case
+	}
 }
 
 void Core::addGameGenieCheat(std::string cheatCode) {
-    if (cheatCode.length() != 6) {
-        addMessage("Code must be 6 characters!", 0xFFFF0000);
-        return;
-    }
-
-    // Convert string characters to their 4-bit integer values (C0 through C5)
-    uint8_t C0 = gGCharToHex(cheatCode[0]);
-    uint8_t C1 = gGCharToHex(cheatCode[1]);
-    uint8_t C2 = gGCharToHex(cheatCode[2]);
-    uint8_t C3 = gGCharToHex(cheatCode[3]);
-    uint8_t C4 = gGCharToHex(cheatCode[4]);
-    uint8_t C5 = gGCharToHex(cheatCode[5]);
-
-    if (C0 == 0xFF || C1 == 0xFF || C2 == 0xFF ||
-        C3 == 0xFF || C4 == 0xFF || C5 == 0xFF) {
-        addMessage("Invalid code!", 0xFFFF0000);
-        return;
-    }
-
-    // Decode the Address (15-bit value starting at 0x8000)
-    // Formula: 0x8000 + ((C3&7)<<12) | ((C5&7)<<8) | ((C4&8)<<8) | ((C2&7)<<4) | ((C1&8)<<4) | (C4&7) | (C3&8)
-    uint16_t addr = 0x8000 |
-        ((C3 & 7) << 12) |
-        ((C5 & 7) << 8)  |
-        ((C4 & 8) << 8)  |
-        ((C2 & 7) << 4)  |
-        ((C1 & 8) << 4)  |
-        (C4 & 7)         |
-        (C3 & 8);
-
-    // Decode the Value (8-bit replacement data)
-    // Formula: ((C1&7)<<4) | ((C0&8)<<4) | (C0&7) | (C5&8)
-    uint8_t val =
-        ((C1 & 7) << 4)  |
-        ((C0 & 8) << 4)  |
-        (C0 & 7)         |
-        (C5 & 8);
-
-    addCheat(addr, val);
+	if (cheatCode.length() != 6) {
+		addMessage("Code must be 6 characters!", 0xFFFF0000);
+		return;
+	}
+	
+	// Convert string characters to their 4-bit integer values (C0 through C5)
+	uint8_t C0 = gGCharToHex(cheatCode[0]);
+	uint8_t C1 = gGCharToHex(cheatCode[1]);
+	uint8_t C2 = gGCharToHex(cheatCode[2]);
+	uint8_t C3 = gGCharToHex(cheatCode[3]);
+	uint8_t C4 = gGCharToHex(cheatCode[4]);
+	uint8_t C5 = gGCharToHex(cheatCode[5]);
+	
+	if (C0 == 0xFF || C1 == 0xFF || C2 == 0xFF ||
+		C3 == 0xFF || C4 == 0xFF || C5 == 0xFF) {
+		addMessage("Invalid code!", 0xFFFF0000);
+		return;
+	}
+	
+	// Decode the Address (15-bit value starting at 0x8000)
+	// Formula: 0x8000 + ((C3&7)<<12) | ((C5&7)<<8) | ((C4&8)<<8) | ((C2&7)<<4) | ((C1&8)<<4) | (C4&7) | (C3&8)
+	uint16_t addr = 0x8000 |
+		((C3 & 7) << 12) |
+		((C5 & 7) << 8)  |
+		((C4 & 8) << 8)  |
+		((C2 & 7) << 4)  |
+		((C1 & 8) << 4)  |
+		(C4 & 7)         |
+		(C3 & 8);
+	
+	// Decode the Value (8-bit replacement data)
+	// Formula: ((C1&7)<<4) | ((C0&8)<<4) | (C0&7) | (C5&8)
+	uint8_t val =
+		((C1 & 7) << 4)  |
+		((C0 & 8) << 4)  |
+		(C0 & 7)         |
+		(C5 & 8);
+	
+	addCheat(addr, val);
 	std::ostringstream oss;
 	oss << "Cheat at 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << addr
 		<< " set to 0x" << std::setw(2) << static_cast<int>(val);
@@ -681,17 +681,17 @@ void Core::setController2(ControllerType type) {
 #include <random>
 
 void Core::randomizeMemory(int numBytes) {
-    // Set up a random number generator
-    std::random_device rd;  // Obtain a random number from hardware
-    std::mt19937 gen(rd()); // Seed the generator
-    std::uniform_int_distribution<uint16_t> addr_dist(0, 0xFFFF); // Distribution for 16-bit addresses
-    std::uniform_int_distribution<uint8_t> value_dist(0, 0xFF);   // Distribution for 8-bit values
-
-    for (int i = 0; i < numBytes; ++i) {
-        uint16_t addr = addr_dist(gen);
-        uint8_t value = value_dist(gen);
-        bus.write(addr, value);
-    }
-
-    addMessage("Randomized!", 0xFFFFFF00);
+	// Set up a random number generator
+	std::random_device rd;  // Obtain a random number from hardware
+	std::mt19937 gen(rd()); // Seed the generator
+	std::uniform_int_distribution<uint16_t> addr_dist(0, 0xFFFF); // Distribution for 16-bit addresses
+	std::uniform_int_distribution<uint8_t> value_dist(0, 0xFF);   // Distribution for 8-bit values
+	
+	for (int i = 0; i < numBytes; ++i) {
+		uint16_t addr = addr_dist(gen);
+		uint8_t value = value_dist(gen);
+		bus.write(addr, value);
+	}
+	
+	addMessage("Randomized!", 0xFFFFFF00);
 }
