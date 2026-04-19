@@ -254,7 +254,8 @@ void Core::updatePromptMessage(std::string newString) {
 }
 
 void Core::updateMessages() {
-	for (int i = 0; i < messages.size();) {
+	// i have to specify unsigned. this is why we don't use c++
+	for (unsigned int i = 0; i < messages.size(); i++) {
 		int currentTime = SDL_GetTicks64();
 		if (currentTime - messages[i].timestamp >= messages[i].timeToLive && messages[i].timeToLive != -1) {
 			// remove message
@@ -652,6 +653,8 @@ void Core::connectCart(Cart* cart) {
 				break;
 			case Cart::LOAD_EMPTY:
 				addMessage("Empty ROM: " + cart->filename, 0xFFFF0000);
+				break;
+			default:
 				break;
 		}
 	} else { // success

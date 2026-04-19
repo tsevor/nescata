@@ -40,20 +40,19 @@ bool PPU::step(int cycles) {
 		// copied from composite sprite rendering
 
 		int spriteY = oam.sprites[0].y + 1;
-
 		int y = scanline - spriteY;
 
-		int spriteX = oam.sprites[0].x;
+		// x doesn't matter because we're doing it by the scanline
+		// int spriteX = oam.sprites[0].x;
+
 		int spriteIdx = oam.sprites[0].tileIdx;
 		uint8_t attributes = oam.sprites[0].attr;
 
 		bool flipY = (attributes & 0x80) != 0;
 
-		uint8_t highByte, lowByte;
-
 		int row = flipY ? (7 - y) : y;
-		highByte = cart->readChr(CTRLspritePatternTableAddress() | spriteIdx * 16 + row);
-		lowByte  = cart->readChr(CTRLspritePatternTableAddress() | spriteIdx * 16 + row + 8);
+		uint8_t highByte = cart->readChr(CTRLspritePatternTableAddress() | (spriteIdx * 16 + row));
+		uint8_t lowByte  = cart->readChr(CTRLspritePatternTableAddress() | (spriteIdx * 16 + row + 8));
 
 		if (highByte | lowByte) {
 			// not transparent

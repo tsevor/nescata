@@ -114,8 +114,8 @@ void Composite::renderNametableAtLine(int nametableIdx, int scanline, int xPos, 
 		// (3B)(3B)(3B)(3B)(3B)(3B)(3B)(3B)
 		// etc...
 
-		uint8_t highByte = cart->readChr(ppu->CTRLbackgroundPatternTableAddress() | tileIdx * 16 + tileYInRow);
-		uint8_t lowByte  = cart->readChr(ppu->CTRLbackgroundPatternTableAddress() | tileIdx * 16 + tileYInRow + 8);
+		uint8_t highByte = cart->readChr(ppu->CTRLbackgroundPatternTableAddress() | (tileIdx * 16 + tileYInRow));
+		uint8_t lowByte  = cart->readChr(ppu->CTRLbackgroundPatternTableAddress() | (tileIdx * 16 + tileYInRow + 8));
 
 		for (int x = 0; x < 8; x++) {
 			int bit = 7 - x;
@@ -167,8 +167,8 @@ void Composite::renderSpritesAtLine(int scanline, int priority, uint32_t* lineBu
 		uint8_t highByte, lowByte;
 
 		int row = flipY ? (7 - y) : y;
-		highByte = cart->readChr(ppu->CTRLspritePatternTableAddress() | spriteIdx * 16 + row);
-		lowByte  = cart->readChr(ppu->CTRLspritePatternTableAddress() | spriteIdx * 16 + row + 8);
+		highByte = cart->readChr(ppu->CTRLspritePatternTableAddress() | (spriteIdx * 16 + row));
+		lowByte  = cart->readChr(ppu->CTRLspritePatternTableAddress() | (spriteIdx * 16 + row + 8));
 
 		for (int x = 0; x < 8; x++) {
 			int bit = flipX ? x : (7 - x);

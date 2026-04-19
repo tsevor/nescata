@@ -144,11 +144,11 @@ uint8_t CPU::_getStatus(bool flagB) {
 	if (flagB)
 		return p.raw | 0b00110000;
 	else
-		return p.raw & 0b11101111 | 0b00100000;
+		return (p.raw & 0b11101111) | 0b00100000;
 }
 
 void CPU::_setStatus(uint8_t status) {
-	p.raw = status & 0b11101111 | 0b00100000;
+	p.raw = (status & 0b11101111) | 0b00100000;
 }
 
 // CPU INSTRUCTION HELPERS

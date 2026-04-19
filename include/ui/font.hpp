@@ -3,7 +3,13 @@
 #include <cstdint>
 
 // i made this font myself, converted to an array from bdf
-// github.com/Shinypot8o/fontty
+// github.com/tsevor/fontty
+
+const int FONT_WIDTH = 6;
+const int FONT_HEIGHT = 8;
+
+const int FONT_TABLE_START = 32;
+const int FONT_TABLE_LENGTH = 97;
 
 const uint8_t font6x8[97][8] = {
 	// 0x20 (032) ' '

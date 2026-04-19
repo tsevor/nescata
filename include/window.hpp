@@ -1,5 +1,6 @@
 #pragma once
 
+#include <SDL2/SDL_render.h>
 #include <cstdint>
 #include <iostream>
 #include <queue>
@@ -25,12 +26,19 @@ private:
 	SDL_AudioDeviceID audio_device = 0;
 	SDL_AudioSpec audio_spec;
 	std::queue<std::vector<uint8_t>> audio_queue;
+	
+	SDL_Texture* cachedFont = nullptr;
 
 	// Helper to extract RGBA from uint32 (ARGB8888)
 	void setRenderColor(uint32_t color);
+	
+	void cacheFont();
 
 public:
 	Window() {};
+	~Window() {
+		SDL_DestroyTexture(cachedFont);
+	}
 
 	int StartWindow();
 	bool pollEvent(SDL_Event* event);
@@ -60,5 +68,6 @@ public:
 	void closeAudio();
 
 	// text rendering functions
-	void drawText(int x, int y, const std::string& text, uint32_t textColor = 0xFFFFFFFF);
+	void drawChar(int x, int y, char c, uint32_t textColor = 0xFFFFFFFF, uint32_t bgColor = 0x7F000000);
+	void drawText(int x, int y, const std::string& text, uint32_t textColor = 0xFFFFFFFF, uint32_t bgColor = 0x7F000000);
 };

@@ -234,7 +234,70 @@ void Window::closeAudio() {
 	}
 }
 
-void Window::drawText(int x, int y, const std::string& text, uint32_t textColor) {
+void Window::cacheFont() {
+	cachedFont = SDL_CreateTexture(
+		renderer,
+		SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_STREAMING,
+		FONT_TABLE_LENGTH * FONT_WIDTH,
+		FONT_HEIGHT
+	);
+
+	SDL_SetTextureBlendMode(cachedFont, SDL_BLENDMODE_BLEND);
+
+	uint32_t* pixels;
+	int pitch;
+
+	SDL_LockTexture(cachedFont, NULL, (void**)&pixels, &pitch);
+
+	for (int c = 0; c < FONT_TABLE_LENGTH; c++) {
+		for (int row = 0; row < FONT_HEIGHT; row++) {
+			uint8_t bits = font6x8[c][row];
+			for (int col = 0; col < FONT_WIDTH; col++) {
+				bool bit = (bits >> (7 - col)) & 1;
+				int pixelX = (c * FONT_WIDTH) + col;
+				int pixelY = row;
+				pixels[pixelY * (pitch / 4) + pixelX] = bit ? 0xFFFFFFFF : 0x00000000;
+			}
+		}
+	}
+
+	SDL_UnlockTexture(cachedFont);
+	SDL_SetTextureBlendMode(cachedFont, SDL_BLENDMODE_BLEND);
+}
+
+void Window::drawChar(int x, int y, char c, uint32_t textColor, uint32_t bgColor) {
+	if (!cachedFont) cacheFont();
+
+	uint8_t code = c;
+
+	if (code < FONT_TABLE_START || code > FONT_TABLE_START + FONT_TABLE_LENGTH) {
+		code = FONT_TABLE_START;
+	}
+
+	code = code - FONT_TABLE_START;
+
+	SDL_Rect src = {code * FONT_WIDTH, 0, FONT_WIDTH, FONT_HEIGHT};
+	SDL_Rect dst = {x, y, FONT_WIDTH, FONT_HEIGHT};
+
+	if ((bgColor >> 24) & 0xFF) {
+		SDL_SetRenderDrawColor(
+			renderer,
+			(bgColor >> 16) & 0xFF,
+			(bgColor >> 8) & 0xFF,
+			bgColor & 0xFF,
+			(bgColor >> 24) & 0xFF
+		);
+		SDL_RenderFillRect(renderer, &dst);
+	}
+	
+	SDL_SetTextureColorMod(cachedFont, (textColor >> 16) & 0xFF, (textColor >> 8) & 0xFF, textColor & 0xFF);
+	SDL_SetTextureAlphaMod(cachedFont, (textColor >> 24) & 0xFF);
+
+	SDL_RenderCopy(renderer, cachedFont, &src, &dst);
+}
+
+void Window::drawText(int x, int y, const std::string& text, uint32_t textColor, uint32_t bgColor) {
 	if (!renderer) return;
 
 	int px = x;
@@ -247,21 +310,7 @@ void Window::drawText(int x, int y, const std::string& text, uint32_t textColor)
 			continue;
 		}
 
-		if (code < 32 || code > 127) code = 32;
-		const uint8_t* glyph = font6x8[code - 32];
-
-		for (int row = 0; row < 8; ++row) {
-			uint8_t bits = glyph[row];
-			for (int col = 0; col < 6; ++col) {
-				if (bits & (1 << (7 - col))) {
-					drawPixel(px + col, y + row, textColor);
-				} else {
-					// slightly transparent background for readability
-					// ARGB: 0x7F000000 -> A=127, R=0, G=0, B=0
-					drawPixel(px + col, y + row, 0x7F000000);
-				}
-			}
-		}
+		drawChar(px, y, code, textColor, bgColor);
 
 		px += 6;
 	}
