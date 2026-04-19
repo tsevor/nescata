@@ -30,7 +30,6 @@ private:
 	uint32_t totalChrSize;
 
 	void updateBanks() {
-		// --- PRG Banking ---
 		// Control Bits 2-3: PRG ROM Bank Mode
 		int mode = (control >> 2) & 0x03;
 		int pIdx = prgBank & 0x0F; 
@@ -50,7 +49,6 @@ private:
 			prgOffsetC000 = ((cart->romBankCount - 1) * 0x4000) % totalPrgSize;
 		}
 
-		// --- CHR Banking ---
 		// Control Bit 4: 0=8KB Mode, 1=4KB Mode
 		bool chr4k = control & 0x10;
 
