@@ -906,7 +906,7 @@ void CPU::logInstruction(uint16_t instrPc, uint8_t opcode, const uint8_t* opcode
 
 void CPU::runInstruction(uint8_t opcode) {
 	switch (opcode) {
-		// ---------   OPCODES   --------- //     OPCODE | BYTES | CYCLES | ADDRESSING
+		// --------- OPCODES --------- // OPCODE | BYTES | CYCLES | ADDRESSING
 		case 0x00: op_BRK(IMP); break; // BRK (0x00) | 1 | 7  | implied
 		case 0x01: op_ORA(INX); break; // ORA (0x01) | 2 | 6  | (indirect,X)
 		case 0x02: op_JAM(IMP); break; // JAM (0x02) | 1 | 0  | implied

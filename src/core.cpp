@@ -43,10 +43,10 @@ void Core::run() {
 			}
 			std::vector<uint8_t> audioBuffer = apu.getAudioBuffer();
 			window.queueAudio(&audioBuffer);
-			handleWindowEvents();
 			// 9999 to skip delay when advancing a single frame
 			window.updateSurface(passFrame ? 9999 : emulationSpeed);
 			passFrame = false;
+			handleWindowEvents();
 		}
 	}
 }
@@ -75,6 +75,13 @@ void Core::handleWindowEvents() {
 				window.closeWindow();
 				exit(0);
 				break;
+			case SDL_TEXTINPUT:
+				if (awaitingTextInput) {
+					// event.text.text is a UTF-8 string
+					inputString += event.text.text;
+					updatePromptMessage(inputPrompt + inputString + "_");
+				}
+				break;
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
 				handleKeyboardEvent(event.key);
@@ -95,27 +102,30 @@ void Core::handleWindowEvents() {
 
 void Core::handleKeyboardEvent(SDL_KeyboardEvent keyEvent) {
 	bool pressed = (keyEvent.type == SDL_KEYDOWN && keyEvent.repeat == 0);
-	const uint8_t* keyboardState = SDL_GetKeyboardState(NULL);
-	bool modShift = keyboardState[SDL_SCANCODE_LSHIFT] || keyboardState[SDL_SCANCODE_RSHIFT];
+	SDL_Keymod mod = SDL_GetModState();
 
 	if (awaitingTextInput) {
 		if (pressed) {
-			if (keyEvent.keysym.sym == SDLK_ESCAPE) {
+			if (keyEvent.keysym.sym == SDLK_RETURN) {
+				awaitingTextInput = false;
+				SDL_StopTextInput(); // Turn it off when done
+			} else if (keyEvent.keysym.sym == SDLK_ESCAPE) {
 				awaitingTextInput = false;
 				inputString.clear();
-			} else if (keyEvent.keysym.sym == SDLK_RETURN) {
-				awaitingTextInput = false;
+				SDL_StopTextInput();
 			} else if (keyEvent.keysym.sym == SDLK_BACKSPACE) {
 				if (!inputString.empty()) {
 					inputString.pop_back();
 				}
-			} else {
-				char c = keyEvent.keysym.sym;
-				if (c >= 32 && c <= 126) { // printable characters
-					inputString += c;
+			} else if (keyEvent.keysym.sym == SDLK_v && (mod & KMOD_CTRL)) {
+				// HANDLE PASTE
+				char* clipboard = SDL_GetClipboardText();
+				if (clipboard) {
+					inputString += clipboard;
+					SDL_free(clipboard);
 				}
 			}
-			updatePromptMessage(inputPrompt + inputString);
+			updatePromptMessage(inputPrompt + inputString + "_"); // Added a cursor
 		}
 		return;
 	}
@@ -123,7 +133,7 @@ void Core::handleKeyboardEvent(SDL_KeyboardEvent keyEvent) {
 	switch (keyEvent.keysym.sym) {
 		case SDLK_r: // reset
 			if (pressed) {
-				if (modShift) {
+				if (mod & (KMOD_LSHIFT | KMOD_RSHIFT)) {
 					// reset everything
 					bus.clearMem();
 					cpu.powerOn();
@@ -279,19 +289,26 @@ void Core::renderMessages() {
 std::string Core::getStrInput(std::string prompt) {
 	awaitingTextInput = true;
 	inputString.clear();
-	addMessage(prompt, 0xFFFFFF00, -1); // infinite time to live
+	addMessage(prompt, 0xFFFFFF00, -1);
 	inputPrompt = prompt;
-	// wait until input is complete
+	
+	SDL_StartTextInput();
+	
+	SDL_PumpEvents();
+	
+	SDL_FlushEvent(SDL_TEXTINPUT);
+	
 	while (awaitingTextInput) {
-		SDL_Delay(100);
+		SDL_Delay(16); 
+		
 		uint32_t* frameBuffer = comp.getBuffer();
-		if (frameBuffer) {
-			window.drawBuffer(frameBuffer);
-		}
+		if (frameBuffer) window.drawBuffer(frameBuffer);
+		
 		handleWindowEvents();
 		window.updateSurface(1.0);
 	}
-	dismissMessage(); // remove prompt message
+	
+	dismissMessage();
 	return inputString;
 }
 
@@ -406,7 +423,7 @@ void Core::parseCommand(std::string command) {
 			}
 		}
 	} else if (tokens[0] == "loadrom") {
-		if (tokens.size() == 2) {
+		if (tokens.size() >= 2) {
 			// join rest of tokens as filename (in case of spaces)
 			std::string filename = tokens[1];
 			for (size_t i = 2; i < tokens.size(); ++i) {
@@ -530,33 +547,10 @@ void Core::commandSetSpeed(double speed) {
 void Core::commandLoadROM(std::string filename) {
 	// load ROM from filename
 	Cart* newCart = new Cart(filename);
-	if (newCart->loadStatus != Cart::LOAD_SUCCESS) {
-		switch (newCart->loadStatus) {
-			case Cart::LOAD_FILE_NOT_FOUND:
-				addMessage("File not found: " + newCart->filename, 0xFFFF0000);
-				break;
-			case Cart::LOAD_INVALID_FORMAT:
-				addMessage("Invalid ROM format: " + newCart->filename, 0xFFFF0000);
-				break;
-			case Cart::LOAD_UNSUPPORTED_MAPPER:
-				addMessage("Unsupported mapper: " + newCart->filename, 0xFFFF0000);
-				break;
-			case Cart::LOAD_EMPTY:
-				addMessage("Empty ROM: " + newCart->filename, 0xFFFF0000);
-				break;
-			default:
-				addMessage("Failed to load ROM: " + newCart->filename, 0xFFFF0000);
-				break;
-		}
-		// keep the current cart if load failed
-		delete newCart;
-		return;
-	}
-
-	// connect new cart (this takes ownership via pointer)
 	connectCart(newCart);
-	// fullReset();
-	// dont reset, leave that to user
+	if (newCart->loadStatus != Cart::LOAD_SUCCESS) {
+		delete newCart;
+	}
 }
 
 uint8_t Core::gGCharToHex(char c) {
@@ -634,13 +628,8 @@ void Core::addCheat(uint16_t addr, uint8_t val) {
 }
 
 void Core::connectCart(Cart* cart) {
-	this->cart = cart;
-	bus.connectCart(cart);
-	comp.connectCart(cart);
-	ppu.connectCart(cart);
-	if (!cart) {
-
-	} else if (cart->blank) {
+	
+	if (cart->loadStatus != Cart::LOAD_SUCCESS) {
 		switch (cart->loadStatus) {
 			case Cart::LOAD_FILE_NOT_FOUND:
 				addMessage("File not found: " + cart->filename, 0xFFFF0000);
@@ -655,11 +644,28 @@ void Core::connectCart(Cart* cart) {
 				addMessage("Empty ROM: " + cart->filename, 0xFFFF0000);
 				break;
 			default:
+				addMessage("Failed to load ROM: " + cart->filename, 0xFFFF0000);
 				break;
 		}
-	} else { // success
-		addMessage("ROM loaded: " + cart->filename, 0xFF00FF00);
+		// keep the current cart if load failed
+		return;
 	}
+
+	// delete old cart
+	if (this->cart) {
+		delete this->cart;
+	}
+	
+	// connect new cart
+	this->cart = cart;
+	bus.connectCart(cart);
+	comp.connectCart(cart);
+	ppu.connectCart(cart);
+	
+	addMessage("ROM loaded: " + cart->filename, 0xFF00FF00);
+	
+	// fullReset();
+	// dont reset, leave that to user
 }
 
 void Core::disconnectCart() {

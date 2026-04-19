@@ -14,7 +14,7 @@ linux: clean
 	g++ -std=c++17 -Werror -Wall -Iinclude -o build/nescata src/*.cpp `pkg-config --cflags --libs sdl2`
 
 run: clean linux
-	./build/nescata
+	./build/nescata "$(ARGS)"
 
 debug:
 	mkdir -p build

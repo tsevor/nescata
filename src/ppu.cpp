@@ -182,19 +182,19 @@ uint8_t PPU::STATread() {
 }
 
 void PPU::STATwrite(uint8_t value) {
-    // PPUSTAT writes are ignored
+	// PPUSTAT writes are ignored
 }
 
 bool PPU::STATisInVBlank() {
-    return stat.V != 0;
+	return stat.V != 0;
 }
 
 bool PPU::STATsprite0Hit() {
-    return stat.S != 0;
+	return stat.S != 0;
 }
 
 bool PPU::STATspriteOverflow() {
-    return stat.O != 0;
+	return stat.O != 0;
 }
 
 // PPUSCRL
@@ -210,7 +210,7 @@ void PPU::SCRLwrite(uint8_t value) {
 }
 
 PPUSCRL PPU::SCRLget() {
-    return scrl;
+	return scrl;
 }
 
 // PPUADDR
@@ -225,7 +225,7 @@ void PPU::ADDRwrite(uint8_t value) {
 }
 
 PPUADDR PPU::ADDRget() {
-    return addr;
+	return addr;
 }
 
 void PPU::ADDRincrement(int inc) {
@@ -343,11 +343,11 @@ void PPU::disconnectComposite() {
 }
 
 void PPU::connectCPU(CPU* cpuRef) {
-    cpu = cpuRef;
+	cpu = cpuRef;
 }
 
 void PPU::disconnectCPU() {
-    cpu = nullptr;
+	cpu = nullptr;
 }
 
 void PPU::connectCart(Cart* cartRef) {

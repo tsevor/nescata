@@ -284,10 +284,6 @@ private:
 	void op_JAM(AddressingMode mode);
 
 
-
-
-
-
 public:
 
 	// RUNNING
