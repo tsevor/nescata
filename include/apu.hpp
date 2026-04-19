@@ -3,6 +3,7 @@
 #include <cstdint>
 #include "apu/pulse.hpp"
 #include "apu/triangle.hpp"
+#include "apu/noise.hpp"
 
 class APU {
 private:
@@ -14,6 +15,7 @@ private:
 	Pulse pulse1 {true};
 	Pulse pulse2 {false};
 	Triangle triangle;
+	Noise noise;
 
 	uint64_t totalCycles = 0;
 	uint64_t frameCounter = 0;
@@ -24,6 +26,7 @@ private:
 	int p1Sum = 0;
 	int p2Sum = 0;
 	int trSum = 0;
+	int nsSum = 0;
 
 public:
 	APU() {}

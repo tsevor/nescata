@@ -19,7 +19,7 @@ void Pulse::write(uint16_t addr, uint8_t val) {
 		case 0x0000:
 			dutyCycle      = (val >> 6) & 0x03;
 			envelopeLoop   = (val >> 5) & 0x01;
-			lengthEnable   = !envelopeLoop; // Halt flag shares the bit with envelope loop
+			lengthEnable   = !envelopeLoop;
 			constantVolume = (val >> 4) & 0x01;
 			envelopePeriod = val & 0x0F;
 			break;

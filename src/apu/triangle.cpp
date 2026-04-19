@@ -1,5 +1,5 @@
 #include "apu/triangle.hpp"
-#include "apu/pulse.hpp" // to reuse Pulse::lengthTable
+#include "apu/pulse.hpp" // reuse Pulse::lengthTable
 
 const uint8_t Triangle::sequenceTable[32] = {
 	15, 14, 13, 12, 11, 10,  9,  8,
@@ -14,7 +14,7 @@ void Triangle::write(uint16_t addr, uint8_t val) {
 	switch (addr) {
 		case 0x0000: // $4008
 			linearControl = (val >> 7) & 0x01;
-			lengthEnable  = !linearControl; // Shared bit
+			lengthEnable  = !linearControl;
 			linearLoad    = val & 0x7F;
 			break;
 

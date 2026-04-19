@@ -7,13 +7,11 @@ public:
 	bool isPulse1 = true;
 	bool enabled = false;
 
-	// Registers / State
 	uint8_t dutyCycle = 0;
 	uint16_t timerLoad = 0;
 	uint16_t timer = 0;
 	uint8_t sequenceStep = 0;
 
-	// Envelope
 	bool constantVolume = false;
 	bool envelopeLoop = false;
 	bool envelopeStart = false;
@@ -21,11 +19,9 @@ public:
 	uint8_t envelopeDivider = 0;
 	uint8_t envelopeDecay = 0;
 
-	// Length Counter
 	bool lengthEnable = true;
 	uint8_t lengthCounter = 0;
 
-	// Sweep
 	bool sweepEnabled = false;
 	bool sweepReload = false;
 	bool sweepNegate = false;
