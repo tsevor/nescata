@@ -7,6 +7,12 @@ Cart::Cart() {
 
 }
 
+Cart::~Cart() {
+	delete mapper;
+	delete[] prgData;
+	delete[] chrData;
+}
+
 Cart::Cart(std::string fName) {
 	blank = true; // Default to blank until successfully loaded
 	mapper = nullptr;
@@ -66,18 +72,16 @@ Cart::Cart(std::string fName) {
 	if (hasTrainer) {
 		fseek(romFile, 512, SEEK_CUR);
 	}
+	
+	prgData = new uint8_t[romSize];
+	fread(prgData, sizeof(uint8_t), romSize, romFile);
 
-	// Load PRG ROM banks
-	for (int i = 0; i < romBankCount; i++) {
-		std::array<uint8_t, 0x4000> bank{};
-		fread(bank.data(), sizeof(uint8_t), 0x4000, romFile);
-		prgBanks.push_back(bank);
-	}
-	// Load CHR ROM banks
-	for (int i = 0; i < chrBankCount; i++) {
-		std::array<uint8_t, 0x2000> bank{};
-		fread(bank.data(), sizeof(uint8_t), 0x2000, romFile);
-		chrBanks.push_back(bank);
+	if (chrBankCount == 0) {
+		chrSize = 0x2000; // Provide 8KB of CHR-RAM
+		chrData = new uint8_t[chrSize](); // The () zero-initializes the array
+	} else {
+		chrData = new uint8_t[chrSize];
+		fread(chrData, sizeof(uint8_t), chrSize, romFile);
 	}
 
 	fclose(romFile);
@@ -93,7 +97,7 @@ Cart::Cart(std::string fName) {
 }
 
 uint8_t Cart::read(uint16_t addr) {
-	if (mapper && !blank) {
+	if (!blank) {
 		return mapper->read(addr);
 		// leave handling up to mapper
 	}
@@ -101,14 +105,14 @@ uint8_t Cart::read(uint16_t addr) {
 }
 
 void Cart::write(uint16_t addr, uint8_t val) {
-	if (mapper && !blank) {
+	if (!blank) {
 		mapper->write(addr, val);
 		// leave handling up to mapper
 	}
 }
 
 uint8_t Cart::readChr(uint16_t addr) {
-	if (mapper && !blank) {
+	if (!blank) {
 		return mapper->readChr(addr);
 		// leave handling up to mapper
 	}
@@ -116,7 +120,7 @@ uint8_t Cart::readChr(uint16_t addr) {
 }
 
 void Cart::writeChr(uint16_t addr, uint8_t val) {
-	if (mapper && !blank) {
+	if (!blank) {
 		mapper->writeChr(addr, val);
 		// leave handling up to mapper
 	}

@@ -1,64 +1,57 @@
 #pragma once
 
-#include <vector>
-#include <array>
 #include <cstdint>
-
 #include "mapper.hpp"
 
-class NROM : public Mapper {
+class NROM final : public Mapper {
+private:
+	uint16_t prgMask;
+
 public:
 	NROM(Cart* cartRef) {
 		cart = cartRef;
-		prgBankCount = cart->prgBanks.size();
-		chrBankCount = cart->chrBanks.size();
 		mapperID = 0;
-		if (prgBankCount == 1) {
-			cart->prgBanks.push_back(cart->prgBanks[0]);
-		} else if (prgBankCount == 2) {
-			cart->prgBanks.push_back(cart->prgBanks[1]);
-		}
-		if (chrBankCount != 1) {
-			cart->chrBanks.push_back(std::array<uint8_t, 0x2000>{});
-		}
+		prgBankCount = cart->romBankCount; // Use the raw count from your new Cart parser
+		chrBankCount = cart->chrBankCount;
+
+		// If 16KB (1 bank), mask is 0x3FFF. This naturally mirrors $8000 to $C000.
+		// If 32KB (2 banks), mask is 0x7FFF. 
+		prgMask = (prgBankCount > 1) ? 0x7FFF : 0x3FFF;
 	}
 
 	uint8_t read(uint16_t addr) override {
-		if (addr >= 0x8000 && addr <= 0xBFFF) {
-			return cart->prgBanks[0][addr - 0x8000];
-		} else if (addr >= 0xC000 && addr <= 0xFFFF) {
-			return cart->prgBanks[1][addr - 0xC000];
-		} else {
-			return 0; // Should not happen
+		if (addr >= 0x8000) {
+			return cart->prgData[addr & prgMask];
 		}
+		return 0;
 	}
 
 	void write(uint16_t addr, uint8_t value) override {
-		// NROM has no bank switching, so writes do nothing.
+		// NROM has no bank switching, writes are ignored.
 	}
 
 	uint8_t readChr(uint16_t addr) override {
 		if (addr < 0x2000) {
-			return cart->chrBanks[0][addr];
-		} else {
-			return 0; // Should not happen
+			return cart->chrData[addr]; // 0x1FFF mask is implied by the < 0x2000 check
 		}
+		return 0;
 	}
 
 	void writeChr(uint16_t addr, uint8_t value) override {
-		if (chrBankCount == 0)
-			cart->chrBanks[0][addr] = value;
+		// Only allow writes if the cartridge is using CHR-RAM
+		if (chrBankCount == 0 && addr < 0x2000) {
+			cart->chrData[addr] = value;
+		}
 	}
 
 	int mirrorNametable(int ntIdx) override {
-		return (int[][4]){
-			{0, 0, 2, 2},
-			{0, 1, 0, 1},
-			{0, 1, 2, 3}
-		}[cart->mirroring][ntIdx];
+		static const int mirrorLookup[3][4] = {
+			{0, 0, 2, 2}, // HORIZONTAL
+			{0, 1, 0, 1}, // VERTICAL
+			{0, 1, 2, 3}  // FOUR_SCREEN
+		};
+		return mirrorLookup[cart->mirroring][ntIdx];
 	}
 
-	void reset() override {
-		// nothing to reset on nrom
-	}
+	void reset() override {}
 };

@@ -25,5 +25,5 @@ public:
 	virtual bool irqState() {return false;}
 	virtual void clockIRQ() {}
 	virtual void reset() {}
-	~Mapper() = default;
+	virtual ~Mapper() = default;
 };

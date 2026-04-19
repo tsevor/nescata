@@ -14,6 +14,7 @@ class PPU {
 	friend Composite;
 private:
 
+
 	// PPU REGISTERS
 	PPUCTRL ctrl;
 	PPUMASK mask;
@@ -30,12 +31,13 @@ private:
 	OAM oam;              // Object Attribute Memory (OAM)
 	uint8_t palette[32];  // Palette Memory
 	uint8_t buffer;       // Internal read buffer for PPUDATA reads
+	
+	uint32_t decodedPalette[32]; // Caching
 
 	int cycle;          // Current PPU cycle
 	int dot;            // Current PPU dot (pixel) within the scanline
 	int scanline;       // Current PPU scanline
 	int frame;          // Current frame count
-
 
 	Cart* cart = nullptr;
 	Composite* comp = nullptr;
@@ -43,6 +45,8 @@ private:
 
 public:
 	PPU();
+	
+	bool skipFrame = false;
 
 	void reset();
 

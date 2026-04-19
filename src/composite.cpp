@@ -81,8 +81,7 @@ void Composite::renderBackgroundAtLine(int scanline, uint32_t* lineBuf) {
 			uint8_t colorIdx = ((high >> bit) & 0x01) << 1 | ((low >> bit) & 0x01);
 
 			if (colorIdx != 0) {
-				uint8_t absPal = ppu->palette[paletteIdx * 4 + colorIdx] & 0x3F;
-				lineBuf[screenX] = defaultARGBpal[absPal] | 0xFF000000;
+				lineBuf[screenX] = ppu->decodedPalette[paletteIdx * 4 + colorIdx];
 			}
 		}
 
@@ -139,11 +138,8 @@ void Composite::renderSpritesAtLine(int scanline, int priority, uint32_t* lineBu
 
 			if (spriteX + x < 0 || spriteX + x >= 256) continue; // pixel out of bounds
 
-			if (colorIdx == 0) {
-				// transparent pixel, do nothing
-			} else {
-				uint8_t absPaletteIndex = ppu->palette[paletteIndex * 4 + colorIdx] & 0x3F; // get color index from palette
-				lineBuf[spriteX + x] = defaultARGBpal[absPaletteIndex]; // get ARGB color from palette
+			if (colorIdx != 0) {
+				lineBuf[spriteX + x] = ppu->decodedPalette[paletteIndex * 4 + colorIdx];
 			}
 		}
 	}

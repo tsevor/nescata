@@ -1,4 +1,5 @@
 #include "core.hpp"
+#include <type_traits>
 
 
 Core::Core() {
@@ -19,11 +20,13 @@ void Core::run() {
 			std::cerr << "Failed to start window!" << std::endl;
 			return;
 		}
-
 	}
 
 	cpu.powerOn();
 	cpu.reset();
+
+	int frameSkipCounter = 0;
+	bool shouldRenderVisuals = true;
 
 	while (true) {
 		if (paused || emulationSpeed == 0.0) {
@@ -36,36 +39,57 @@ void Core::run() {
 				}
 				renderMessages();
 				handleWindowEvents();
-				window.updateSurface(1.0);
+				window.updateSurface(1.0, false);
 			}
 		}
+
+		// Tell the PPU before the frame begins
+		ppu.skipFrame = !shouldRenderVisuals;
+
 		if (cpu.clock()) { // returns true if frame has completed
-			uint32_t* frameBuffer = comp.getBuffer();
-			if (frameBuffer) {
-				window.drawBuffer(frameBuffer);
+
+			if (shouldRenderVisuals) {
+				frameSkipCounter = 0;
+				uint32_t* frameBuffer = comp.getBuffer();
+				if (frameBuffer) {
+					window.drawBuffer(frameBuffer);
+				}
+				renderMessages();
 			}
-			renderMessages();
+
+			// AUDIO LOGIC
 			if (emulationSpeed == 1) {
 				uint8_t* audioBuffer = apu.swapBuffers();
 				window.queueAudio(audioBuffer, 735);
-			} else {
+			} else if (emulationSpeed > 0.1 && emulationSpeed < 20) {
 				uint8_t* audioBuffer = apu.swapBuffers();
 				int scaledBufferLen = 735 / emulationSpeed;
-				uint8_t* scaledAudioBuffer = new uint8_t[scaledBufferLen];
+
+				uint8_t scaledAudioBuffer[7350]; // down to 10% speed
 				for (int i = 0; i < scaledBufferLen; i++) {
 					scaledAudioBuffer[i] = audioBuffer[(i * 735) / scaledBufferLen];
 				}
 				window.queueAudio(scaledAudioBuffer, scaledBufferLen);
-				delete[] scaledAudioBuffer;
 			}
-			
-			while (window.getQueuedAudioSize() > 4096 && !paused) {
-				SDL_Delay(1);
+
+			// AUDIO SYNC
+			if (emulationSpeed == 1.0) {
+				while (window.getQueuedAudioSize() > 4096 && !paused) {
+					SDL_Delay(1);
+				}
 			}
-			// 4 is pretty reasonably fast
-			window.updateSurface(passFrame ? 4 : emulationSpeed);
+
+			// Calculate Skip Logic for the NEXT frame
+			int speedInt = std::max(1, (int)emulationSpeed);
+			frameSkipCounter++;
+			shouldRenderVisuals = (frameSkipCounter >= speedInt) || passFrame;
+
+			window.updateSurface(passFrame ? 5 : emulationSpeed, ppu.skipFrame);
 			passFrame = false;
-			handleWindowEvents();
+
+			if (shouldRenderVisuals) {
+				handleWindowEvents();
+			}
 		}
 	}
 }
@@ -213,7 +237,7 @@ void Core::handleKeyboardEvent(SDL_KeyboardEvent keyEvent) {
 		case SDLK_PERIOD:
 			if (pressed) {
 				prevEmulationSpeed = emulationSpeed;
-				emulationSpeed = 4;
+				emulationSpeed = 5;
 			}
 		default:
 			if (pressed && rebindInProgress) {
@@ -382,6 +406,7 @@ int Core::getScancodeOfSingleKey() {
 		if (frameBuffer) {
 			window.drawBuffer(frameBuffer);
 		}
+		renderMessages();
 		handleWindowEvents();
 		window.updateSurface(1.0);
 	}
@@ -471,6 +496,7 @@ void Core::parseCommand(std::string command) {
 				uint16_t addr = a & 0xFFFF;
 				uint8_t value = v & 0xFF;
 				addCheat(addr, value);
+				bus.cheatsEnabled = true;
 				std::ostringstream oss;
 				oss << "Cheat at 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << addr
 					<< " set to 0x" << std::setw(2) << value;
@@ -480,9 +506,10 @@ void Core::parseCommand(std::string command) {
 			}
 		}
 	} else if (tokens[0] == "ggcheat") {
-		if (tokens.size() == 2) {
-			addGameGenieCheat(tokens[1]);
-		}
+		addMessage("this is broken but i haven't removed it yet", 0xFFFF0000);
+		// if (tokens.size() == 2) {
+		// 	addGameGenieCheat(tokens[1]);
+		// }
 	} else if (tokens[0] == "cheats") {
 		if (tokens.size() == 1) {
 			for (std::pair<uint16_t, uint8_t> cheat : bus.cheats) {
@@ -498,6 +525,9 @@ void Core::parseCommand(std::string command) {
 				unsigned long a = std::stoul(tokens[1], nullptr, 0);
 				uint16_t addr = a & 0xFFFF;
 				bus.cheats.erase(addr);
+				if (bus.cheats.empty()) {
+					bus.cheatsEnabled = false;
+				}
 				std::ostringstream oss;
 				oss << "removed cheat at 0x" << std::hex << std::uppercase
 					<< std::setfill('0') << std::setw(4) << addr;

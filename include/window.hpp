@@ -42,7 +42,7 @@ public:
 
 	int StartWindow();
 	bool pollEvent(SDL_Event* event);
-	void updateSurface(double emulationSpeed = 1.0);
+	void updateSurface(double emulationSpeed = 1.0, bool skipRender = false);
 	void closeWindow();
 
 	void waitForVsync();

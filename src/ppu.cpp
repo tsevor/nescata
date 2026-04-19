@@ -79,7 +79,9 @@ bool PPU::step(int cycles) {
 
 	dot -= 341;
 	if (scanline < 240) {
-		comp->renderScanline(scanline);
+		if (!skipFrame) {
+			comp->renderScanline(scanline);
+		}
 
 		if (MASKshowBackground() || MASKshowSprites()) {
 			incrementY();
@@ -282,14 +284,12 @@ void PPU::incrementY() {
 uint8_t PPU::read() {
 	uint16_t a = v.raw & 0x3FFF;
 	uint8_t result = 0;
-
+	if (a < 0x2000)
+		result = useBuffer(cart->readChr(a));
+	else if (a < 0x3000)
+		result = useBuffer(readNametable(a));
+	else
 	switch (a) {
-		case 0x0000 ... 0x1FFF:
-			result = useBuffer(cart ? cart->readChr(a) : 0);
-			break;
-		case 0x2000 ... 0x2FFF:
-			result = useBuffer(readNametable(a));
-			break;
 		case 0x3F00 ... 0x3FFF:
 			result = palette[a & 0x1F];
 			break;
@@ -307,7 +307,7 @@ void PPU::write(uint8_t value) {
 
 	switch (a) {
 		case 0x0000 ... 0x1FFF:
-			if (cart) cart->writeChr(a, value);
+			cart->writeChr(a, value);
 			break;
 		case 0x2000 ... 0x2FFF:
 			writeNametable(a, value);
@@ -317,6 +317,7 @@ void PPU::write(uint8_t value) {
 		case 0x3F18:
 		case 0x3F1C:
 			palette[(a ^ 0x10) & 0x1F] = value;
+			decodedPalette[(a ^ 0x10) & 0x1F] = defaultARGBpal[value & 0x3F] | 0xFF000000;
 			break;
 		case 0x3F00 ... 0x3F0F:
 		case 0x3F11 ... 0x3F13:
@@ -324,6 +325,7 @@ void PPU::write(uint8_t value) {
 		case 0x3F19 ... 0x3F1B:
 		case 0x3F1D ... 0x3FFF:
 			palette[a & 0x1F] = value;
+			decodedPalette[a & 0x1F] = defaultARGBpal[value & 0x3F] | 0xFF000000;
 			break;
 		default:
 			break;

@@ -21,6 +21,7 @@ private:
 	Controller* controller2 = nullptr;
 public:
 
+	bool cheatsEnabled = false;
 	std::unordered_map<uint16_t, uint8_t> cheats;
 
 	Bus();

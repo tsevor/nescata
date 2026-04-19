@@ -64,16 +64,17 @@ bool Window::pollEvent(SDL_Event* event) {
 	return SDL_PollEvent(event);
 }
 
-void Window::updateSurface(double emulationSpeed) {
+void Window::updateSurface(double emulationSpeed, bool skipRender) {
 	if (emulationSpeed <= 0.0) emulationSpeed = 1.0;
 	
-	// Present the backbuffer to the screen first
-	SDL_RenderPresent(renderer);
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-	SDL_RenderClear(renderer);
+	if (!skipRender) {
+		SDL_RenderPresent(renderer);
+		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+		SDL_RenderClear(renderer);
+	}
 	
 	// If emulationSpeed is huge, just skip the delay
-	if (emulationSpeed >= 1000.0) {
+	if (emulationSpeed >= 100) {
 		return;
 	}
 	

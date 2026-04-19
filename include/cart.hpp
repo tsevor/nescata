@@ -8,6 +8,8 @@
 
 #include "mappers/mapper.hpp"
 
+class Bus;
+
 enum MirroringType {
 	HORIZONTAL = 0,
 	VERTICAL = 1,
@@ -28,10 +30,11 @@ public:
 
 	std::string filename;
 
-	std::vector<std::array<uint8_t, 0x4000>> prgBanks;
-	std::vector<std::array<uint8_t, 0x2000>> chrBanks;
+	uint8_t* prgData;
+	uint8_t* chrData;
 
 	Mapper* mapper = nullptr;
+	Bus* bus = nullptr;
 
 	uint8_t header[16];
 	int romBankCount = 0;
@@ -55,6 +58,7 @@ public:
 	Cart();
 	Cart(std::string fName);
 	Cart(uint8_t* fileData); // for future plans, undefined at the moment
+	~Cart();
 
 	uint8_t read(uint16_t addr);
 	void write(uint16_t addr, uint8_t val);
