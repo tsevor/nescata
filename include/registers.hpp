@@ -45,22 +45,16 @@ union PPUSTAT {
 	uint8_t raw;
 };
 
-
-struct PPUSCRL {
-	uint8_t x : 8; // X scroll
-	uint8_t y : 8; // Y scroll
-};
-
-union PPUADDR {
+union LoopyRegister {
 	struct {
-		uint8_t low : 8;  // Low 8 bits of address
-		uint8_t high : 6; // High 6 bits of address
-		uint8_t unused : 2; // Unused to line up to the byte
+		uint16_t coarseX : 5;
+		uint16_t coarseY : 5;
+		uint16_t nametableX : 1;
+		uint16_t nametableY : 1;
+		uint16_t fineY : 3;
+		uint16_t unused : 1;
 	};
-	struct {
-		uint16_t value : 14; // Full 14-bit address
-		uint8_t unused2 : 2; // Unused to line up to the byte
-	};
+	uint16_t raw;
 };
 
 union OAM {

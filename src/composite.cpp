@@ -54,82 +54,43 @@ void Composite::renderScanline(int scanline) {
 }
 
 void Composite::renderBackgroundAtLine(int scanline, uint32_t* lineBuf) {
-	int scrollX = ppu->SCRLget().x | (ppu->ctrl.raw & 1) * 256;
-	int scrollY = ppu->SCRLget().y | (ppu->ctrl.raw & 2) * 128;
-	// render all 4 nametables to handle scrolling
-	// mirroring is handled in PPU nametable read/write functions
-	// nametables are laid out in a 2x2 grid at fixed positions
-	// we scroll the screen over them, but here we just move them under the screen
+	LoopyRegister lineV = ppu->v;
+	uint8_t fineX = ppu->x;
 
-	int ntlx = scrollX > 256 ? 512 - scrollX : -scrollX;
-	int ntty = scrollY > 240 ? 496 - scrollY : -scrollY;
+	for (int t = 0; t < 33; t++) {
+		uint16_t ntBase = 0x2000 | (lineV.raw & 0x0C00);
+		uint16_t tileAddr = ntBase | (lineV.raw & 0x03FF);
 
-	renderNametableAtLine(0, scanline, ntlx,          ntty,       lineBuf);
-	renderNametableAtLine(1, scanline, 256 - scrollX, ntty,       lineBuf);
-	renderNametableAtLine(2, scanline, ntlx,          ntty + 240, lineBuf);
-	renderNametableAtLine(3, scanline, 256 - scrollX, ntty + 240, lineBuf);
-}
+		uint8_t tileIdx = ppu->readNametable(tileAddr);
 
-void Composite::renderNametableAtLine(int nametableIdx, int scanline, int xPos, int yPos, uint32_t* lineBuf) {
-	int lineInNametable = scanline - yPos;
-	if (lineInNametable < -240) lineInNametable += 480;
-	if (lineInNametable < 0 || lineInNametable >= 240) {
-		return; // line not in this nametable
-	}
-	if (xPos >= 256 || xPos + 255 < 0) {
-		return; // nametable not visible on screen
-	}
-	int nametableBaseAddr = 0x2000 + nametableIdx * 0x400;
-	int attributeBaseAddr = nametableBaseAddr + 0x3C0;
+		uint16_t attrAddr = ntBase | 0x3C0 | ((lineV.coarseY / 4) << 3) | (lineV.coarseX / 4);
+		uint8_t attrByte = ppu->readNametable(attrAddr);
+		int quadrant = ((lineV.coarseY % 4) / 2) * 2 + ((lineV.coarseX % 4) / 2);
+		uint8_t paletteIdx = (attrByte >> (quadrant * 2)) & 0x03;
 
-	// Wrap lineInNametable for vertical scrolling
-	int wrappedLine = lineInNametable % 240;
-	int tileRowOffset = wrappedLine / 8 * 32;
-	int tileYInRow = wrappedLine % 8;
+		uint8_t low = cart->readChr(ppu->CTRLbackgroundPatternTableAddress() | (tileIdx * 16 + lineV.fineY));
+		uint8_t high = cart->readChr(ppu->CTRLbackgroundPatternTableAddress() | (tileIdx * 16 + lineV.fineY + 8));
 
-	for (int tileCol = 0; tileCol < 32; tileCol++) {
-		int tileXPos = xPos + tileCol * 8;
-		if (tileXPos >= 256 || tileXPos + 7 < 0) {
-			continue; // tile not visible on screen
+		for (int p = 0; p < 8; p++) {
+			int screenX = (t * 8) + p - fineX;
+			if (screenX < 0 || screenX >= 256) continue;
+
+			if (screenX < 8 && !ppu->MASKshowBackgroundLeft()) continue;
+
+			int bit = 7 - p;
+			uint8_t colorIdx = ((high >> bit) & 0x01) << 1 | ((low >> bit) & 0x01);
+
+			if (colorIdx != 0) {
+				uint8_t absPal = ppu->palette[paletteIdx * 4 + colorIdx] & 0x3F;
+				lineBuf[screenX] = defaultARGBpal[absPal] | 0xFF000000;
+			}
 		}
 
-		uint8_t tileIdx = ppu->readNametable(nametableBaseAddr + tileRowOffset + tileCol);
-
-		// get attribute byte
-		int attrRow = (wrappedLine / 32);
-		int attrCol = (tileCol / 4);
-		uint8_t attributeByte = ppu->readNametable(attributeBaseAddr + attrRow * 8 + attrCol);
-
-		// determine which quadrant of the attribute byte to use
-		int quadrant = ((wrappedLine % 32) / 16) * 2 + ((tileCol % 4) / 2);
-		uint8_t paletteIndex = (attributeByte >> (quadrant * 2)) & 0x03;
-
-		// get the full tile data from CHR ROM/RAM
-		// each tile is 16 bytes. the first 8 bytes are the low bits of each pixel row,
-		// and the next 8 bytes are the high bits of each pixel row.
-		// 2 bits per pixel, a bit from each byte, so 2 bytes per row:
-		// (08)(08)(08)(08)(08)(08)(08)(08)
-		// (19)(19)(19)(19)(19)(19)(19)(19)
-		// (2A)(2A)(2A)(2A)(2A)(2A)(2A)(2A)
-		// (3B)(3B)(3B)(3B)(3B)(3B)(3B)(3B)
-		// etc...
-
-		uint8_t highByte = cart->readChr(ppu->CTRLbackgroundPatternTableAddress() | (tileIdx * 16 + tileYInRow));
-		uint8_t lowByte  = cart->readChr(ppu->CTRLbackgroundPatternTableAddress() | (tileIdx * 16 + tileYInRow + 8));
-
-		for (int x = 0; x < 8; x++) {
-			int bit = 7 - x;
-			uint8_t bit0 = (highByte >> bit) & 0x01;
-			uint8_t bit1 = (lowByte >> bit) & 0x01;
-			uint8_t colorIdx = (bit1 << 1) | bit0;
-
-			if (tileXPos + x < 0 || tileXPos + x >= 256) continue; // pixel out of bounds
-			if (colorIdx == 0) {
-				// transparent pixel, do nothing
-			} else {
-				uint8_t absPaletteIndex = ppu->palette[paletteIndex * 4 + colorIdx] & 0x3F; // get color index from palette
-				lineBuf[tileXPos + x] = defaultARGBpal[absPaletteIndex]; // get ARGB color from palette
-			}
+		if (lineV.coarseX == 31) {
+			lineV.coarseX = 0;
+			lineV.nametableX = ~lineV.nametableX;
+		} else {
+			lineV.coarseX++;
 		}
 	}
 }

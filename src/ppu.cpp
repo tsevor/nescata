@@ -31,59 +31,63 @@ bool PPU::step(int cycles) {
 	dot += cycles;
 	cycle += cycles;
 
+	if (dot >= 257 && (dot - cycles) < 257 && scanline < 240) {
+		if (MASKshowBackground() || MASKshowSprites()) {
+			v.coarseX = t.coarseX;
+			v.nametableX = t.nametableX;
+		}
+	}
+
 	if (dot < 341) {
 		return false;
 	}
 
-	if (MASKshowSprites() && oam.sprites[0].y <= scanline && oam.sprites[0].y + 8 > scanline && oam.sprites[0].x <= dot) {
-		// now check if the sprite has any pixels in the row
-		// copied from composite sprite rendering
-
+	if (MASKshowSprites() && scanline < 240) {
 		int spriteY = oam.sprites[0].y + 1;
-		int y = scanline - spriteY;
+		if (scanline >= spriteY && scanline < spriteY + 8) {
+			int y = scanline - spriteY;
+			int spriteIdx = oam.sprites[0].tileIdx;
+			uint8_t attr = oam.sprites[0].attr;
+			bool flipY = (attr & 0x80) != 0;
+			int row = flipY ? (7 - y) : y;
 
-		// x doesn't matter because we're doing it by the scanline
-		// int spriteX = oam.sprites[0].x;
+			uint8_t low  = cart->readChr(CTRLspritePatternTableAddress() | (spriteIdx * 16 + row));
+			uint8_t high = cart->readChr(CTRLspritePatternTableAddress() | (spriteIdx * 16 + row + 8));
 
-		int spriteIdx = oam.sprites[0].tileIdx;
-		uint8_t attributes = oam.sprites[0].attr;
-
-		bool flipY = (attributes & 0x80) != 0;
-
-		int row = flipY ? (7 - y) : y;
-		uint8_t highByte = cart->readChr(CTRLspritePatternTableAddress() | (spriteIdx * 16 + row));
-		uint8_t lowByte  = cart->readChr(CTRLspritePatternTableAddress() | (spriteIdx * 16 + row + 8));
-
-		if (highByte | lowByte) {
-			// not transparent
-			stat.S = 1;
+			if (low | high) stat.S = 1;
 		}
 	}
 
-	dot -= 341;
-	comp->renderScanline(scanline);
-	// std::cout << "scanline: " << scanline << std::endl;
-	scanline++;
+	bool ret = false;
 
 	if (scanline == 241) {
 		stat.V = 1;
 		stat.S = 0;
-		if (CTRLgenerateNMI() && cpu) {
-			cpu->triggerNMI();
+		if (CTRLgenerateNMI() && cpu) cpu->triggerNMI();
+	} else if (scanline == 261) {
+		if (MASKshowBackground() || MASKshowSprites()) {
+			v.raw = t.raw;
 		}
-	}
-
-	else if (scanline >= 262) {
-		scanline = 0;
-		frame++;
 		stat.V = 0;
 		stat.S = 0;
 		stat.O = 0;
-		w=true;
-		return true;
+	} else if (scanline >= 262) {
+		scanline = 0;
+		frame++;
+		ret = true;
 	}
 
-	return false;
+	dot -= 341;
+	if (scanline < 240) {
+		comp->renderScanline(scanline);
+
+		if (MASKshowBackground() || MASKshowSprites()) {
+			incrementY();
+		}
+	}
+	scanline++;
+
+	return ret;
 }
 
 
@@ -93,10 +97,6 @@ bool PPU::step(int cycles) {
 
 uint8_t PPU::CTRLread() {
 	return ctrl.raw;
-}
-
-void PPU::CTRLwrite(uint8_t value) {
-	ctrl.raw = value;
 }
 
 uint16_t PPU::CTRLnametableAddress() {
@@ -173,16 +173,15 @@ ColorEmphasis PPU::MASKgetEmphasis() {
 
 // PPUSTAT
 
-uint8_t PPU::STATread() {
-	uint8_t value = stat.raw;
-	// Reading PPUSTATUS clears VBlank (bit V) and resets the write toggle (w)
-	stat.V = 0;
-	w = true;
-	return value;
-}
-
 void PPU::STATwrite(uint8_t value) {
 	// PPUSTAT writes are ignored
+}
+
+uint8_t PPU::STATread() {
+	uint8_t value = stat.raw;
+	stat.V = 0;
+	w = true; // Reading status resets the write toggle
+	return value;
 }
 
 bool PPU::STATisInVBlank() {
@@ -195,41 +194,6 @@ bool PPU::STATsprite0Hit() {
 
 bool PPU::STATspriteOverflow() {
 	return stat.O != 0;
-}
-
-// PPUSCRL
-void PPU::SCRLwrite(uint8_t value) {
-	// Use member w instead of a static local so PPUSTATUS reads
-	// can reset this toggle as hardware requires.
-	if (w) {
-		scrl.x = value;
-	} else {
-		scrl.y = value;
-	}
-	w = !w;
-}
-
-PPUSCRL PPU::SCRLget() {
-	return scrl;
-}
-
-// PPUADDR
-void PPU::ADDRwrite(uint8_t value) {
-	// Use member w. First write sets high 6 bits, second write sets low 8 bits.
-	if (w) {
-		addr.high = value & 0x3F;  // Only 6 bits are used
-	} else {
-		addr.low = value;
-	}
-	w = !w;
-}
-
-PPUADDR PPU::ADDRget() {
-	return addr;
-}
-
-void PPU::ADDRincrement(int inc) {
-	addr.value += inc;
 }
 
 // OAMADDR
@@ -261,8 +225,62 @@ void PPU::OAMDMAwrite(uint8_t* values) {
 	oamaddr = addr; // store updated address (wraps naturally via uint8)
 }
 
+// LoopyRegisters
+
+void PPU::CTRLwrite(uint8_t value) {
+	ctrl.raw = value;
+	t.nametableX = ctrl.N & 0x01;
+	t.nametableY = (ctrl.N >> 1) & 0x01;
+}
+
+void PPU::SCRLwrite(uint8_t value) {
+	if (w) {
+		t.coarseX = value >> 3;
+		x = value & 0x07;
+	} else {
+		t.fineY = value & 0x07;
+		t.coarseY = value >> 3;
+	}
+	w = !w;
+}
+
+void PPU::ADDRwrite(uint8_t value) {
+	if (w) {
+		t.raw = (t.raw & 0x80FF) | ((value & 0x3F) << 8);
+	} else {
+		t.raw = (t.raw & 0xFF00) | value;
+		v.raw = t.raw;
+	}
+	w = !w;
+}
+
+void PPU::incrementX() {
+	if (v.coarseX == 31) {
+		v.coarseX = 0;
+		v.nametableX = ~v.nametableX;
+	} else {
+		v.coarseX++;
+	}
+}
+
+void PPU::incrementY() {
+	if (v.fineY < 7) {
+		v.fineY++;
+	} else {
+		v.fineY = 0;
+		if (v.coarseY == 29) {
+			v.coarseY = 0;
+			v.nametableY = ~v.nametableY;
+		} else if (v.coarseY == 31) {
+			v.coarseY = 0;
+		} else {
+			v.coarseY++;
+		}
+	}
+}
+
 uint8_t PPU::read() {
-	uint16_t a = addr.value & 0x3FFF;
+	uint16_t a = v.raw & 0x3FFF;
 	uint8_t result = 0;
 
 	switch (a) {
@@ -280,12 +298,12 @@ uint8_t PPU::read() {
 			break;
 	}
 
-	ADDRincrement(CTRLvramAddressIncrement());
+	v.raw += CTRLvramAddressIncrement();
 	return result;
 }
 
 void PPU::write(uint8_t value) {
-	uint16_t a = addr.value & 0x3FFF;
+	uint16_t a = v.raw & 0x3FFF;
 
 	switch (a) {
 		case 0x0000 ... 0x1FFF:
@@ -311,7 +329,7 @@ void PPU::write(uint8_t value) {
 			break;
 	}
 
-	ADDRincrement(CTRLvramAddressIncrement());
+	v.raw += CTRLvramAddressIncrement();
 }
 
 uint8_t PPU::readNametable(uint16_t addr) {
