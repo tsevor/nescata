@@ -66,6 +66,5 @@ void Triangle::clockLength() {
 }
 
 uint8_t Triangle::getOutput() {
-	if (!enabled) return 0;
 	return sequenceTable[sequenceStep];
 }

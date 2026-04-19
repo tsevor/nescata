@@ -12,6 +12,24 @@ void APU::reset() {
 	p2Sum = 0;
 	trSum = 0;
 	nsSum = 0;
+	dmcSum = 0;
+}
+
+uint8_t APU::read(uint16_t addr) {
+	uint8_t data = 0;
+	if (addr == 0x4015) {
+		if (pulse1.lengthCounter > 0) data |= 0x01;
+		if (pulse2.lengthCounter > 0) data |= 0x02;
+		if (triangle.lengthCounter > 0) data |= 0x04;
+		if (noise.lengthCounter > 0) data |= 0x08;
+		if (dmc.bytesRemaining > 0) data |= 0x10;
+
+		if (frameIrq) data |= 0x40;
+		if (dmc.irqPending) data |= 0x80;
+
+		frameIrq = false; // Reading $4015 clears the frame IRQ flag
+	}
+	return data;
 }
 
 void APU::write(uint16_t addr, uint8_t val) {
@@ -40,7 +58,7 @@ void APU::write(uint16_t addr, uint8_t val) {
 
 			noise.enabled = (val & 0x08);
 			if (!noise.enabled) noise.lengthCounter = 0;
-			
+
 			dmc.enabled = (val & 0x10);
 			if (!dmc.enabled) {
 				dmc.bytesRemaining = 0;
@@ -48,37 +66,68 @@ void APU::write(uint16_t addr, uint8_t val) {
 				dmc.restartSample();
 			}
 			break;
+		case 0x4017:
+			frameMode = (val >> 7) & 0x01;
+			irqInhibit = (val >> 6) & 0x01;
+			if (irqInhibit) frameIrq = false;
+
+			frameCounter = 0;
+			if (frameMode == 1) {
+				clockQuarterFrame();
+				clockHalfFrame();
+			}
+			break;
 	}
 }
 
 void APU::step(int cpuCycles) {
 	for (int i = 0; i < cpuCycles; i++) {
-
 		frameCounter++;
 
-		// 7457 CPU cycles is about one quarter-frame
-		if (frameCounter == 7457) {
-			clockQuarterFrame();
-		} else if (frameCounter == 14913) {
-			clockQuarterFrame();
-			clockHalfFrame();
-		} else if (frameCounter == 22371) {
-			clockQuarterFrame();
-		} else if (frameCounter == 29829) {
-			clockQuarterFrame();
-			clockHalfFrame();
-			frameCounter = 0;
+		if (frameMode == 0) {
+			// 4-step sequence
+			if (frameCounter == 7457) {
+				clockQuarterFrame();
+			} else if (frameCounter == 14913) {
+				clockQuarterFrame();
+				clockHalfFrame();
+			} else if (frameCounter == 22371) {
+				clockQuarterFrame();
+			} else if (frameCounter == 29828 && !irqInhibit) {
+				frameIrq = true;
+			} else if (frameCounter == 29829) {
+				clockQuarterFrame();
+				clockHalfFrame();
+				if (!irqInhibit) frameIrq = true;
+			} else if (frameCounter == 29830) {
+				if (!irqInhibit) frameIrq = true;
+				frameCounter = 0;
+			}
+		} else {
+			// 5-step sequence
+			if (frameCounter == 7457) {
+				clockQuarterFrame();
+			} else if (frameCounter == 14913) {
+				clockQuarterFrame();
+				clockHalfFrame();
+			} else if (frameCounter == 22371) {
+				clockQuarterFrame();
+			} else if (frameCounter == 37281) {
+				clockQuarterFrame();
+				clockHalfFrame();
+				frameCounter = 0;
+			}
 		}
 
 		totalCycles++;
 
 		triangle.clockTimer();
 		dmc.clockTimer();
+		noise.clockTimer();
 
 		if (totalCycles % 2 == 0) {
 			pulse1.clockTimer();
 			pulse2.clockTimer();
-			noise.clockTimer();
 		}
 
 		p1Sum += pulse1.getOutput();
@@ -86,26 +135,31 @@ void APU::step(int cpuCycles) {
 		trSum += triangle.getOutput();
 		nsSum += noise.getOutput();
 		dmcSum += dmc.getOutput();
-		
-		mixCycles++;
 
-		if (mixCycles == 41) {
+		mixCycles++;
+		audioTimer += 1.0;
+
+		// 1789773.0 / 44100.0 = 40.58442... cycles per sample
+		if (audioTimer >= 40.5844217687) {
+			audioTimer -= 40.5844217687;
+
 			if (sampleIndex < 735) {
-				double p1 = p1Sum / 41.0;
-				double p2 = p2Sum / 41.0;
-				double tr = trSum / 41.0;
-				double ns = nsSum / 41.0;
-				double dm = dmcSum / 41.0;
-				
+				double p1 = p1Sum / (double)mixCycles;
+				double p2 = p2Sum / (double)mixCycles;
+				double tr = trSum / (double)mixCycles;
+				double ns = nsSum / (double)mixCycles;
+				double dm = dmcSum / (double)mixCycles;
+
 				double pulseOut = 0.0;
 				if (p1 + p2 > 0) {
 					pulseOut = 95.88 / ((8128.0 / (p1 + p2)) + 100.0);
 				}
+
 				double tndOut = 0.0;
 				if (tr + ns + dm > 0) {
 					tndOut = 159.79 / (1.0 / ((tr / 8227.0) + (ns / 12241.0) + (dm / 22638.0)) + 100.0);
 				}
-				
+
 				workingBuffer[sampleIndex] = static_cast<uint8_t>((pulseOut + tndOut) * 255.0);
 				sampleIndex++;
 			}
@@ -152,7 +206,6 @@ void APU::clockHalfFrame() {
 
 	pulse1.clockSweep();
 	pulse2.clockSweep();
-	triangle.clockLinear();
 
 }
 

@@ -36,7 +36,7 @@ public:
 	Pulse(bool isPulse1) : isPulse1(isPulse1) {}
 
 	void write(uint16_t addr, uint8_t val);
-	uint16_t calculateSweepTarget();
+	int32_t calculateSweepTarget();
 	
 	void clockTimer();
 	void clockEnvelope();

@@ -27,9 +27,14 @@ private:
 
 	uint64_t totalCycles = 0;
 	uint64_t frameCounter = 0;
+	
+	uint8_t frameMode = 0;
+	bool irqInhibit = false;
+	bool frameIrq = false;
 
 	int sampleIndex = 0;
 
+	double audioTimer = 0.0;
 	int mixCycles = 0;
 	int p1Sum = 0;
 	int p2Sum = 0;
@@ -45,6 +50,7 @@ public:
 
 	void reset();
 	void step(int cpuCycles);
+	uint8_t read(uint16_t addr);
 	void write(uint16_t addr, uint8_t val);
 
 	uint8_t* swapBuffers();

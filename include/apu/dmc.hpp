@@ -7,7 +7,7 @@ class Bus;
 
 class DMC {
 public:
-	DMC();
+	DMC() {}
 
 	bool enabled = false;
 	Bus* bus = nullptr;

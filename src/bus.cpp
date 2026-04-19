@@ -48,9 +48,11 @@ uint8_t Bus::read(uint16_t addr) {
 			return ppu->read();
 		case 0x2008 ... 0x3FFF: // ppu registers mirror
 			return read(0x2000 | (addr & 0x7));
-		case 0x4000 ... 0x4015: // APU and I/O registers
+		case 0x4000 ... 0x4014: // APU and I/O registers
 			// Placeholder for APU and I/O register read
 			return 0;
+		case 0x4015:
+			return apu->read(0x4015);
 		case 0x4016:
 			return controller1->read();
 		case 0x4017:

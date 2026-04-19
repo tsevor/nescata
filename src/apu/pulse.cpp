@@ -47,8 +47,8 @@ void Pulse::write(uint16_t addr, uint8_t val) {
 	}
 }
 
-uint16_t Pulse::calculateSweepTarget() {
-	uint16_t change = timerLoad >> sweepShift;
+int32_t Pulse::calculateSweepTarget() {
+	int32_t change = timerLoad >> sweepShift;
 	if (sweepNegate) {
 		if (isPulse1) {
 			return timerLoad - change - 1;

@@ -6,8 +6,6 @@ const uint16_t DMC::rateTable[16] = {
 	190, 160, 142, 128, 106, 84,  72,  54
 };
 
-DMC::DMC() {}
-
 void DMC::write(uint16_t addr, uint8_t val) {
 	switch (addr) {
 		case 0x0000: // $4010
@@ -44,6 +42,8 @@ void DMC::fetchSample() {
 	
 	sampleBuffer = bus->read(currentAddress);
 	sampleBufferEmpty = false;
+
+	// would stall cpu 4 cycles
 	
 	currentAddress++;
 	if (currentAddress == 0x0000) {
