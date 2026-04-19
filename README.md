@@ -27,8 +27,7 @@ in command mode, type help to see commands
   - mmc3
     - https://www.nesdev.org/wiki/MMC3
     - https://forums.nesdev.org/viewtopic.php?t=16781
-- implement the apu
-  - https://www.nesdev.org/wiki/APU
+- increase apu accuracy
 
 
 

@@ -19,10 +19,6 @@
 #include "window.hpp"
 #include "ui/message.hpp"
 
-
-// the core initializes and manages all the components
-
-
 class Core {
 public:
 	Bus bus;

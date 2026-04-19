@@ -8,6 +8,7 @@ Core::Core() {
 	ppu.connectComposite(&comp);
 	ppu.connectCPU(&cpu);
 	comp.connectPPU(&ppu);
+	apu.connectBus(&bus);
 	bus.connectController1(&controller1);
 	bus.connectController2(&controller2);
 }
@@ -44,13 +45,25 @@ void Core::run() {
 				window.drawBuffer(frameBuffer);
 			}
 			renderMessages();
-			uint8_t* audioBuffer = apu.swapBuffers();
-			window.queueAudio(audioBuffer, 735);
+			if (emulationSpeed == 1) {
+				uint8_t* audioBuffer = apu.swapBuffers();
+				window.queueAudio(audioBuffer, 735);
+			} else {
+				uint8_t* audioBuffer = apu.swapBuffers();
+				int scaledBufferLen = 735 / emulationSpeed;
+				uint8_t* scaledAudioBuffer = new uint8_t[scaledBufferLen];
+				for (int i = 0; i < scaledBufferLen; i++) {
+					scaledAudioBuffer[i] = audioBuffer[(i * 735) / scaledBufferLen];
+				}
+				window.queueAudio(scaledAudioBuffer, scaledBufferLen);
+				delete[] scaledAudioBuffer;
+			}
+			
 			while (window.getQueuedAudioSize() > 4096 && !paused) {
 				SDL_Delay(1);
 			}
-			// 9999 to skip delay when advancing a single frame
-			window.updateSurface(passFrame ? 9999 : emulationSpeed);
+			// 4 is pretty reasonably fast
+			window.updateSurface(passFrame ? 4 : emulationSpeed);
 			passFrame = false;
 			handleWindowEvents();
 		}
@@ -200,7 +213,7 @@ void Core::handleKeyboardEvent(SDL_KeyboardEvent keyEvent) {
 		case SDLK_PERIOD:
 			if (pressed) {
 				prevEmulationSpeed = emulationSpeed;
-				emulationSpeed = 99999;
+				emulationSpeed = 4;
 			}
 		default:
 			if (pressed && rebindInProgress) {

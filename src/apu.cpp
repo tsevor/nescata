@@ -40,6 +40,13 @@ void APU::write(uint16_t addr, uint8_t val) {
 
 			noise.enabled = (val & 0x08);
 			if (!noise.enabled) noise.lengthCounter = 0;
+			
+			dmc.enabled = (val & 0x10);
+			if (!dmc.enabled) {
+				dmc.bytesRemaining = 0;
+			} else if (dmc.bytesRemaining == 0) {
+				dmc.restartSample();
+			}
 			break;
 	}
 }
@@ -66,6 +73,7 @@ void APU::step(int cpuCycles) {
 		totalCycles++;
 
 		triangle.clockTimer();
+		dmc.clockTimer();
 
 		if (totalCycles % 2 == 0) {
 			pulse1.clockTimer();
@@ -77,16 +85,28 @@ void APU::step(int cpuCycles) {
 		p2Sum += pulse2.getOutput();
 		trSum += triangle.getOutput();
 		nsSum += noise.getOutput();
+		dmcSum += dmc.getOutput();
+		
 		mixCycles++;
 
 		if (mixCycles == 41) {
 			if (sampleIndex < 735) {
-				uint8_t p1 = p1Sum / 41;
-				uint8_t p2 = p2Sum / 41;
-				uint8_t tr = trSum / 41;
-				uint8_t ns = nsSum / 41;
+				double p1 = p1Sum / 41.0;
+				double p2 = p2Sum / 41.0;
+				double tr = trSum / 41.0;
+				double ns = nsSum / 41.0;
+				double dm = dmcSum / 41.0;
 				
-				workingBuffer[sampleIndex] = (p1 + p2 + tr + ns) * 4;
+				double pulseOut = 0.0;
+				if (p1 + p2 > 0) {
+					pulseOut = 95.88 / ((8128.0 / (p1 + p2)) + 100.0);
+				}
+				double tndOut = 0.0;
+				if (tr + ns + dm > 0) {
+					tndOut = 159.79 / (1.0 / ((tr / 8227.0) + (ns / 12241.0) + (dm / 22638.0)) + 100.0);
+				}
+				
+				workingBuffer[sampleIndex] = static_cast<uint8_t>((pulseOut + tndOut) * 255.0);
 				sampleIndex++;
 			}
 
@@ -94,6 +114,7 @@ void APU::step(int cpuCycles) {
 			p2Sum = 0;
 			trSum = 0;
 			nsSum = 0;
+			dmcSum = 0;
 			mixCycles = 0;
 		}
 	}
@@ -133,4 +154,9 @@ void APU::clockHalfFrame() {
 	pulse2.clockSweep();
 	triangle.clockLinear();
 
+}
+
+void APU::connectBus(Bus* busRef) {
+	bus = busRef;
+	dmc.connectBus(busRef);
 }
