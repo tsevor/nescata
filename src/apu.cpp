@@ -5,6 +5,12 @@ void APU::reset() {
 	pulse2.enabled = false;
 	sampleIndex = 0;
 	totalCycles = 0;
+	frameCounter = 0;
+
+	mixCycles = 0;
+	p1Sum = 0;
+	p2Sum = 0;
+	trSum = 0;
 }
 
 void APU::write(uint16_t addr, uint8_t val) {
@@ -15,13 +21,18 @@ void APU::write(uint16_t addr, uint8_t val) {
 		case 0x4004 ... 0x4007:
 			pulse2.write(addr & 0x03, val);
 			break;
+		case 0x4008 ... 0x400B:
+			triangle.write(addr & 0x03, val);
+			break;
 		case 0x4015:
 			pulse1.enabled = (val & 0x01);
 			if (!pulse1.enabled) pulse1.lengthCounter = 0;
-			
+
 			pulse2.enabled = (val & 0x02);
 			if (!pulse2.enabled) pulse2.lengthCounter = 0;
-			
+
+			triangle.enabled = (val & 0x04); // Bit 2
+			if (!triangle.enabled) triangle.lengthCounter = 0;
 			break;
 	}
 }
@@ -47,21 +58,33 @@ void APU::step(int cpuCycles) {
 
 		totalCycles++;
 
+		triangle.clockTimer();
+
 		// APU timers clock every 2 CPU cycles
 		if (totalCycles % 2 == 0) {
 			pulse1.clockTimer();
 			pulse2.clockTimer();
 		}
 
-		// Naive downsampling: ~1.789MHz CPU / 44100Hz Audio = ~40.5 CPU cycles per sample.
-		// Grab a sample every 41 cycles to fill the buffer incrementally.
-		if (totalCycles % 41 == 0 && sampleIndex < 735) {
-			uint8_t p1 = pulse1.getOutput();
-			uint8_t p2 = pulse2.getOutput();
+		p1Sum += pulse1.getOutput();
+		p2Sum += pulse2.getOutput();
+		trSum += triangle.getOutput();
+		mixCycles++;
 
-			// Mix and scale the 4-bit volumes up to 8-bit space
-			workingBuffer[sampleIndex] = (p1 + p2) * 4;
-			sampleIndex++;
+		if (mixCycles == 41) {
+			if (sampleIndex < 735) {
+				uint8_t p1 = p1Sum / 41;
+				uint8_t p2 = p2Sum / 41;
+				uint8_t tr = trSum / 41;
+
+				workingBuffer[sampleIndex] = (p1 + p2 + tr) * 2;
+				sampleIndex++;
+			}
+
+			p1Sum = 0;
+			p2Sum = 0;
+			trSum = 0;
+			mixCycles = 0;
 		}
 	}
 }
@@ -86,13 +109,16 @@ uint8_t* APU::swapBuffers() {
 void APU::clockQuarterFrame() {
 	pulse1.clockEnvelope();
 	pulse2.clockEnvelope();
+	triangle.clockLinear();
 }
 
 void APU::clockHalfFrame() {
 	pulse1.clockLength();
 	pulse2.clockLength();
+	triangle.clockLength();
 
 	pulse1.clockSweep();
 	pulse2.clockSweep();
+	triangle.clockLinear();
 
 }
