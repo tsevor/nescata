@@ -52,6 +52,10 @@ int Window::StartWindow() {
 		std::cout << "Failed to create texture: " << SDL_GetError() << "\n";
 		return -1;
 	}
+	
+	if (!initAudio(44100, AUDIO_U8, 1, 1024)) {
+		std::cout << "Audio initialization failed, continuing without sound.\n";
+	}
 
 	return 0;
 }
@@ -61,39 +65,49 @@ bool Window::pollEvent(SDL_Event* event) {
 }
 
 void Window::updateSurface(double emulationSpeed) {
-	// current time from ctime in milliseconds
-	int64_t currentTime = SDL_GetTicks64();
-
-	// Guard against invalid speed values
 	if (emulationSpeed <= 0.0) emulationSpeed = 1.0;
-
-	// Target frame time in milliseconds for 60 FPS, adjusted by emulation speed.
-	// e.g. emulationSpeed == 1.0 -> ~16.6667 ms, emulationSpeed == 2.0 -> ~8.333 ms
-	double targetFrameTime = (1000.0 / 60.0) / emulationSpeed;
-
-	// If timeAlive is zero (first frame), initialize it to now to avoid large delay
-	if (timeAlive == 0) {
-		timeAlive = currentTime;
-	}
-
-	int64_t timeSinceLastFrame = currentTime - timeAlive;
-
-	// A very large emulationSpeed (used elsewhere as a sentinel) means "don't wait"
-	if (emulationSpeed < 1000.0) {
-		if (timeSinceLastFrame < targetFrameTime) {
-			Uint32 delayMs = (Uint32)ceil(targetFrameTime - timeSinceLastFrame);
-			if (delayMs > 0) SDL_Delay(delayMs);
-		}
-	}
-
-	// Update the last-frame timestamp after any sleeping
-	timeAlive = SDL_GetTicks64();
-
-	// Present the backbuffer to the screen
+	
+	// Present the backbuffer to the screen first
 	SDL_RenderPresent(renderer);
-
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 	SDL_RenderClear(renderer);
+	
+	// If emulationSpeed is huge, just skip the delay
+	if (emulationSpeed >= 1000.0) {
+		return;
+	}
+	
+	static uint64_t lastTime = SDL_GetPerformanceCounter();
+	uint64_t currentTime;
+	double targetFrameTime = (1.0 / 60.0) / emulationSpeed; // Target time in SECONDS
+	double elapsedTime;
+	
+	// Spin-lock loop for microsecond accuracy
+	while (true) {
+		currentTime = SDL_GetPerformanceCounter();
+		elapsedTime = (double)(currentTime - lastTime) / SDL_GetPerformanceFrequency();
+		
+		if (elapsedTime >= targetFrameTime) {
+			break; 
+		}
+		
+		// If we have more than 2 milliseconds to wait, yield to the OS to save CPU.
+		// Otherwise, burn CPU cycles in the while loop to hit the exact microsecond.
+		if (targetFrameTime - elapsedTime > 0.002) {
+			SDL_Delay(1);
+		}
+	}
+	
+	// Do NOT set lastTime = SDL_GetPerformanceCounter().
+	// Add the target time to the last time to ensure absolute sync over time,
+	// absorbing any micro-stutters.
+	lastTime += (uint64_t)(targetFrameTime * SDL_GetPerformanceFrequency());
+	
+	// If the emulator falls severely behind (e.g. window was dragged), reset the clock
+	// so it doesn't run at 1000 FPS trying to catch up.
+	if ((SDL_GetPerformanceCounter() - lastTime) > SDL_GetPerformanceFrequency()) {
+		lastTime = SDL_GetPerformanceCounter();
+	}
 }
 
 void Window::closeWindow() {
@@ -202,9 +216,9 @@ bool Window::initAudio(int frequency, uint16_t format, int channels, int samples
 	return true;
 }
 
-void Window::queueAudio(std::vector<uint8_t>* buffer) {
-	if (audio_device != 0 && buffer != nullptr) {
-		SDL_QueueAudio(audio_device, buffer->data(), buffer->size());
+void Window::queueAudio(uint8_t* buffer, int size) {
+	if (audio_device != 0 && buffer) {
+		SDL_QueueAudio(audio_device, buffer, size);
 	}
 }
 

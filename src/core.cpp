@@ -32,6 +32,7 @@ void Core::run() {
 				if (frameBuffer) {
 					window.drawBuffer(frameBuffer);
 				}
+				renderMessages();
 				handleWindowEvents();
 				window.updateSurface(1.0);
 			}
@@ -41,8 +42,12 @@ void Core::run() {
 			if (frameBuffer) {
 				window.drawBuffer(frameBuffer);
 			}
-			std::vector<uint8_t> audioBuffer = apu.getAudioBuffer();
-			window.queueAudio(&audioBuffer);
+			renderMessages();
+			uint8_t* audioBuffer = apu.swapBuffers();
+			window.queueAudio(audioBuffer, 735);
+			while (window.getQueuedAudioSize() > 4096 && !paused) {
+				SDL_Delay(1);
+			}
 			// 9999 to skip delay when advancing a single frame
 			window.updateSurface(passFrame ? 9999 : emulationSpeed);
 			passFrame = false;
@@ -93,7 +98,6 @@ void Core::handleWindowEvents() {
 
 	processHeldKeys();
 	updateMessages();
-	renderMessages();
 
 	// update controller state from current keyboard state
 	uint8_t buttonState = getControllerButtonState();
@@ -303,6 +307,8 @@ std::string Core::getStrInput(std::string prompt) {
 		
 		uint32_t* frameBuffer = comp.getBuffer();
 		if (frameBuffer) window.drawBuffer(frameBuffer);
+		
+		renderMessages();
 		
 		handleWindowEvents();
 		window.updateSurface(1.0);

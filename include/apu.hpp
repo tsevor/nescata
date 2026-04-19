@@ -1,15 +1,21 @@
 #pragma once
 
 #include <cstdint>
+#include <cmath>
 #include <vector>
 
 class APU {
+private:
+	uint8_t bufferA[735];
+	uint8_t bufferB[735];
+	uint8_t* activeBuffer = bufferA;
+	uint8_t* workingBuffer = bufferB;
+
 public:
 	APU();
 
 	void reset();
-
 	void step(int cycles);
-
-	std::vector<uint8_t> getAudioBuffer();
+	
+	uint8_t* swapBuffers();
 };

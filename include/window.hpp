@@ -61,7 +61,8 @@ public:
 
 	// Audio functions
 	bool initAudio(int frequency = 44100, uint16_t format = AUDIO_S16SYS, int channels = 1, int samples = 2048);
-	void queueAudio(std::vector<uint8_t>* buffer);
+	void setAudioQueue(uint8_t* buffer, int size);
+	void queueAudio(uint8_t* buffer, int size);
 	void pauseAudio(bool pause_on);
 	uint32_t getQueuedAudioSize() const;
 	void clearAudioQueue();
