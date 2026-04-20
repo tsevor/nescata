@@ -41,6 +41,8 @@ private:
 	int trSum = 0;
 	int nsSum = 0;
 	int dmcSum = 0;
+	
+	int frameCounterResetDelay = 0;
 
 public:
 	APU() {}

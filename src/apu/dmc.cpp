@@ -1,5 +1,4 @@
 #include "apu/dmc.hpp"
-#include "bus.hpp"
 
 const uint16_t DMC::rateTable[16] = {
 	428, 380, 340, 320, 286, 254, 226, 214,
@@ -50,12 +49,12 @@ void DMC::fetchSample() {
 		currentAddress = 0x8000;
 	}
 
-	bytesRemaining--;
 	if (bytesRemaining == 0) {
 		if (loopFlag) {
 			restartSample();
 		} else if (irqEnable) {
 			irqPending = true;
+			*(bus->irqLine) = true;
 		}
 	}
 }

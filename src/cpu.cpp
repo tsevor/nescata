@@ -74,9 +74,11 @@ void CPU::enableLogging(bool enable) {
 
 void CPU::connectBus(Bus* busRef) {
 	bus = busRef;
+	bus->irqLine = &irqPending;
 }
 
 void CPU::disconnectBus() {
+	bus->irqLine = nullptr;
 	bus = nullptr;
 }
 
@@ -208,6 +210,10 @@ void CPU::_branch(bool condition) {
 }
 
 void CPU::_interrupt(CPU::InterruptVector vec) {
+	if (vec != CPU::VECTOR_BRK) {
+		cycles += 7;
+	}
+
 	if (vec == CPU::VECTOR_RESET) {
 		p.I = 1; // Disable IRQs
 		pc = readMem16(RESET_VECTOR);
@@ -333,6 +339,7 @@ void CPU::op_CLD(AddressingMode mode) {
 
 void CPU::op_CLI(AddressingMode mode) {
 	p.I = 0;
+	interruptDelay = true;
 }
 
 void CPU::op_CLV(AddressingMode mode) {
@@ -620,8 +627,10 @@ void CPU::op_ANC2(AddressingMode mode) {
 }
 
 void CPU::op_ANE(AddressingMode mode) {
-	// Highly unstable, often treated as a NOP that fetches an operand
-	getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode);
+	uint8_t val = readMem(addr);
+	a = (a | 0xEE) & x & val;
+	_setZNFlags(a);
 }
 
 void CPU::op_ARR(AddressingMode mode) {
@@ -672,8 +681,11 @@ void CPU::op_LAX(AddressingMode mode) {
 }
 
 void CPU::op_LXA(AddressingMode mode) {
-	// so unstable that it's not really worth implementing
-	getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode);
+	uint8_t val = readMem(addr);
+	a = (a | 0xEE) & val;
+	x = a;
+	_setZNFlags(a);
 }
 
 void CPU::op_RLA(AddressingMode mode) {
@@ -715,22 +727,31 @@ void CPU::op_SBX(AddressingMode mode) {
 
 void CPU::op_SHA(AddressingMode mode) {
 	uint16_t addr = getOperandAddress(mode);
-	uint8_t highByte = (addr >> 8) + 1;
-	uint8_t val = a & x & highByte;
+	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
+	uint8_t val = a & x & (baseHighByte + 1);
+	if (pageCrossed) {
+		addr = (addr & 0x00FF) | (val << 8);
+	}
 	writeMem(addr, val);
 }
 
 void CPU::op_SHX(AddressingMode mode) {
 	uint16_t addr = getOperandAddress(mode);
-	uint8_t highByte = (addr >> 8) + 1;
-	uint8_t val = x & highByte;
+	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
+	uint8_t val = x & (baseHighByte + 1);
+	if (pageCrossed) {
+		addr = (addr & 0x00FF) | (val << 8);
+	}
 	writeMem(addr, val);
 }
 
 void CPU::op_SHY(AddressingMode mode) {
 	uint16_t addr = getOperandAddress(mode);
-	uint8_t highByte = (addr >> 8) + 1;
-	uint8_t val = y & highByte;
+	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
+	uint8_t val = y & (baseHighByte + 1);
+	if (pageCrossed) {
+		addr = (addr & 0x00FF) | (val << 8);
+	}
 	writeMem(addr, val);
 }
 
@@ -757,8 +778,14 @@ void CPU::op_SRE(AddressingMode mode) {
 }
 
 void CPU::op_TAS(AddressingMode mode) {
-	// Unstable, often treated as a NOP that fetches an operand
-	getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode);
+	s = a & x;
+	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
+	uint8_t val = s & (baseHighByte + 1);
+	if (pageCrossed) {
+		addr = (addr & 0x00FF) | (val << 8);
+	}
+	writeMem(addr, val);
 }
 
 void CPU::op_USBC(AddressingMode mode) {
@@ -805,11 +832,24 @@ void CPU::powerOn() {
 }
 
 bool CPU::clock() {
-	// if jammed, do nothing
-	// return true to allow window to update
+	// if jammed, do nothing on cpu
 	if (jammed) {
-		return true;
+		// send dummy cycles so ppu and apu keep running
+		return bus->clock(12);
 	}
+
+	long int prev_cycles = cycles;
+
+	// Respect the 1-instruction delay
+	if (irqPending && p.I == 0 && !interruptDelay) {
+		_interrupt(VECTOR_IRQ);
+		int diff_cycles = cycles - prev_cycles;
+		if (bus) bus->clock(diff_cycles * 12);
+		return false; 
+	}
+
+	interruptDelay = false; // Reset the delay so the subsequent instruction can be hijacked
+
 	// Capture program counter at instruction start so log lines show the
 	// correct address and bytes for the instruction executed.
 	uint16_t instrPc = pc;
@@ -850,16 +890,13 @@ bool CPU::clock() {
 		logInstruction(instrPc, opcode, opcodeBytes, byteCount);
 	}
 
-	long int prev_cycles = cycles;
 	// Add base cycles for this instruction
 	cycles += OPCODE_CYCLES_MAP[opcode];
 
 	runInstruction(opcode);
 	int diff_cycles = cycles - prev_cycles;
 
-	if (bus) {
-		return bus->clock(diff_cycles * 12);
-	}
+	return bus->clock(diff_cycles * 12);
 
 	return false;
 }
@@ -1164,7 +1201,7 @@ void CPU::runInstruction(uint8_t opcode) {
 
 		case 0xf0: op_BEQ(REL); break; // BEQ (0xF0) | 2 | 2**| relative
 		case 0xf1: op_SBC(INY); break; // SBC (0xF1) | 2 | 5* | (indirect),Y
-		case 0xf2: op_NOP(IMP); break; // NOP (0xF2) | 1 | 0  | implied
+		case 0xf2: op_JAM(IMP); break; // JAM (0xF2) | 1 | 0  | implied
 		case 0xf3: op_ISC(INY); break; // ISC (0xF3) | 2 | 8  | (indirect),Y
 		case 0xf4: op_NOP(ZPX); break; // NOP (0xF4) | 2 | 4  | zeropage,X
 		case 0xf5: op_SBC(ZPX); break; // SBC (0xF5) | 2 | 4  | zeropage,X

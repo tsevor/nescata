@@ -13,6 +13,11 @@ void APU::reset() {
 	trSum = 0;
 	nsSum = 0;
 	dmcSum = 0;
+
+	frameIrq = false;
+	if (!dmc.irqPending) {
+		*(bus->irqLine) = false;
+	}
 }
 
 uint8_t APU::read(uint16_t addr) {
@@ -23,13 +28,15 @@ uint8_t APU::read(uint16_t addr) {
 		if (triangle.lengthCounter > 0) data |= 0x04;
 		if (noise.lengthCounter > 0) data |= 0x08;
 		if (dmc.bytesRemaining > 0) data |= 0x10;
-
 		if (frameIrq) data |= 0x40;
-		if (dmc.irqPending) data |= 0x80;
+			if (dmc.irqPending) data |= 0x80;
 
-		frameIrq = false; // Reading $4015 clears the frame IRQ flag
-	}
-	return data;
+			frameIrq = false; // Reading $4015 clears the frame IRQ flag
+			if (!dmc.irqPending) {
+				*(bus->irqLine) = false;
+			}
+		}
+		return data;
 }
 
 void APU::write(uint16_t addr, uint8_t val) {
@@ -62,16 +69,23 @@ void APU::write(uint16_t addr, uint8_t val) {
 			dmc.enabled = (val & 0x10);
 			if (!dmc.enabled) {
 				dmc.bytesRemaining = 0;
-			} else if (dmc.bytesRemaining == 0) {
-				dmc.restartSample();
+				dmc.irqPending = false;
+				if (!frameIrq) {
+					*(bus->irqLine) = false;
+				}
 			}
 			break;
 		case 0x4017:
 			frameMode = (val >> 7) & 0x01;
 			irqInhibit = (val >> 6) & 0x01;
-			if (irqInhibit) frameIrq = false;
+			
+			frameIrq = false;
+			if (!dmc.irqPending) {
+				*(bus->irqLine) = false;
+			}
+			
+			frameCounterResetDelay = (totalCycles % 2 == 0) ? 3 : 4;
 
-			frameCounter = 0;
 			if (frameMode == 1) {
 				clockQuarterFrame();
 				clockHalfFrame();
@@ -82,10 +96,18 @@ void APU::write(uint16_t addr, uint8_t val) {
 
 void APU::step(int cpuCycles) {
 	for (int i = 0; i < cpuCycles; i++) {
+		// Handle the $4017 reset delay
+		if (frameCounterResetDelay > 0) {
+			frameCounterResetDelay--;
+			if (frameCounterResetDelay == 0) {
+				frameCounter = 0;
+			}
+		}
+
 		frameCounter++;
 
 		if (frameMode == 0) {
-			// 4-step sequence
+			// 4-step sequence timing
 			if (frameCounter == 7457) {
 				clockQuarterFrame();
 			} else if (frameCounter == 14913) {
@@ -93,18 +115,27 @@ void APU::step(int cpuCycles) {
 				clockHalfFrame();
 			} else if (frameCounter == 22371) {
 				clockQuarterFrame();
-			} else if (frameCounter == 29828 && !irqInhibit) {
-				frameIrq = true;
+			} else if (frameCounter == 29828) {
+				if (!irqInhibit) {
+					frameIrq = true;
+					*(bus->irqLine) = true;
+				}
 			} else if (frameCounter == 29829) {
+				if (!irqInhibit) {
+					frameIrq = true;
+					*(bus->irqLine) = true;
+				}
 				clockQuarterFrame();
 				clockHalfFrame();
-				if (!irqInhibit) frameIrq = true;
 			} else if (frameCounter == 29830) {
-				if (!irqInhibit) frameIrq = true;
+				if (!irqInhibit) {
+					frameIrq = true;
+					*(bus->irqLine) = true;
+				}
 				frameCounter = 0;
 			}
 		} else {
-			// 5-step sequence
+			// 5-step sequence timing
 			if (frameCounter == 7457) {
 				clockQuarterFrame();
 			} else if (frameCounter == 14913) {
@@ -119,15 +150,16 @@ void APU::step(int cpuCycles) {
 			}
 		}
 
+
 		totalCycles++;
 
 		triangle.clockTimer();
 		dmc.clockTimer();
-		noise.clockTimer();
 
 		if (totalCycles % 2 == 0) {
 			pulse1.clockTimer();
 			pulse2.clockTimer();
+			noise.clockTimer();
 		}
 
 		p1Sum += pulse1.getOutput();

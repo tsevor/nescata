@@ -43,3 +43,5 @@ public:
 
 	void connectBus(Bus* bus);
 };
+
+#include "bus.hpp"

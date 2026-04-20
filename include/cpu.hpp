@@ -100,7 +100,7 @@ private:
 		IMP, INX, IMP, INX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS, // 0
 		REL, INY, IMP, INY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX, // 1
 		ABS, INX, IMP, INX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS, // 2
-		REL, INY, IMP, INY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX, // 3
+		REL, INY, IMP, INY, ZPX, ZPX, ZPX, ZPX, IMP, INY, IMP, ABY, ABX, ABX, ABX, ABX, // 3
 		IMP, INX, IMP, INX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS, // 4
 		REL, INY, IMP, INY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX, // 5
 		IMP, INX, IMP, INX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, IND, ABS, ABS, ABS, // 6
@@ -140,9 +140,14 @@ private:
 	bool enableCpuLog = false;
 
 	bool pageCrossed;
+	
+	bool interruptDelay = false;
+	
 
 public:
 
+	bool irqPending = false;
+	
 	bool jammed = false;
 
 	CPU();
