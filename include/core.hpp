@@ -39,6 +39,10 @@ public:
 	double prevEmulationSpeed = 1.0;
 	bool paused = false;
 	bool passFrame = false; // used when paused to advance a single frame
+	
+	// audio
+	uint8_t scaledAudioBuffer[7350]; // down to 10% speed
+	double audioVolume = 0.5;
 
 	// messaging system
 	std::vector<Message> messages;
@@ -62,6 +66,9 @@ public:
 	void commandSpeedUp(double factor);
 	void commandSlowDown(double factor);
 	void commandSetSpeed(double speed);
+	void commandVolumeUp(double factor);
+	void commandVolumeDown(double factor);
+	void commandSetVolume(double volume);
 	void commandLoadROM(std::string filename);
 	uint8_t gGCharToHex(char c);
 	void addGameGenieCheat(std::string cheatCode);

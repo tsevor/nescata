@@ -1,5 +1,4 @@
 #include "core.hpp"
-#include <type_traits>
 
 
 Core::Core() {
@@ -58,16 +57,12 @@ void Core::run() {
 			}
 
 			// AUDIO LOGIC
-			if (emulationSpeed == 1) {
-				uint8_t* audioBuffer = apu.swapBuffers();
-				window.queueAudio(audioBuffer, 735);
-			} else if (emulationSpeed > 0.1 && emulationSpeed < 20) {
+			if (emulationSpeed > 0.1 && emulationSpeed < 20) {
 				uint8_t* audioBuffer = apu.swapBuffers();
 				int scaledBufferLen = 735 / emulationSpeed;
 
-				uint8_t scaledAudioBuffer[7350]; // down to 10% speed
 				for (int i = 0; i < scaledBufferLen; i++) {
-					scaledAudioBuffer[i] = audioBuffer[(i * 735) / scaledBufferLen];
+					scaledAudioBuffer[i] = audioBuffer[(i * 735) / scaledBufferLen] * audioVolume;
 				}
 				window.queueAudio(scaledAudioBuffer, scaledBufferLen);
 			}
@@ -213,6 +208,14 @@ void Core::handleKeyboardEvent(SDL_KeyboardEvent keyEvent) {
 		case SDLK_MINUS: // slow down
 			if (pressed) commandSlowDown(1.1);
 			break;
+
+		case SDLK_RIGHTBRACKET: // volume up
+			if (pressed) commandVolumeUp(1.1);
+			break;
+		case SDLK_LEFTBRACKET: // volume down
+			if (pressed) commandVolumeDown(1.1);
+			break;
+
 		case SDLK_h: // help
 			if (pressed) {
 				addMessage("Keybinds:", 0xFFFFFF00);
@@ -222,9 +225,9 @@ void Core::handleKeyboardEvent(SDL_KeyboardEvent keyEvent) {
 				addMessage("F - Advance Single Frame (when paused)", 0xFFFFFF00);
 				addMessage("K - Toggle CPU killed state", 0xFFFFFF00);
 				addMessage("G - Randomize 100 Bytes in Memory", 0xFFFFFF00);
-				addMessage(". - Sprint while held", 0xFFFFFF00);
-				addMessage("+ - Increase Emulation Speed", 0xFFFFFF00);
-				addMessage("- - Decrease Emulation Speed", 0xFFFFFF00);
+				addMessage(". - FFW while held", 0xFFFFFF00);
+				addMessage("+|- - Change Emulation Speed", 0xFFFFFF00);
+				addMessage("[|] - Change Emulator Volume", 0xFFFFFF00);
 				addMessage("; - Command line mode", 0xFFFFFF00);
 			}
 			break;
@@ -436,6 +439,11 @@ void Core::parseCommand(std::string command) {
 			double speed = std::stod(tokens[1]);
 			commandSetSpeed(speed);
 		}
+	} else if (tokens[0] == "volume") {
+		if (tokens.size() == 2) {
+			double volume = std::stod(tokens[1]);
+			commandSetVolume(volume);
+		}
 	} else if (tokens[0] == "setmem") {
 		if (tokens.size() == 3) {
 			// parse address and value (accept hex like 0xNNNN or decimal)
@@ -542,6 +550,7 @@ void Core::parseCommand(std::string command) {
 		addMessage("pause - toggle pause/unpause", 0xFFFFFF00);
 		addMessage("quit/exit - quit the emulator", 0xFFFFFF00);
 		addMessage("speed <speed> - set emulation speed", 0xFFFFFF00);
+		addMessage("volume <volume> - set emulator volume", 0xFFFFFF00);
 		addMessage("setmem <addr> <value> - set memory", 0xFFFFFF00);
 		addMessage("getmem <addr> - get memory at address", 0xFFFFFF00);
 		addMessage("loadrom <filename> - load ROM from file", 0xFFFFFF00);
@@ -592,6 +601,33 @@ void Core::commandSlowDown(double factor) {
 void Core::commandSetSpeed(double speed) {
 	emulationSpeed = speed;
 	addMessage("Emulation speed: " + std::to_string(emulationSpeed) + "x", 0xFFFFFF00);
+}
+
+void Core::commandVolumeUp(double factor) {
+	audioVolume *= factor;
+	// clipping protection?? more like "i hate fun :("
+	if (audioVolume == 0) {
+		// recover from allowing 0
+		audioVolume = 0.02;
+	}
+	addMessage("Volume: " + std::to_string(audioVolume), 0xFFFFFF00);
+}
+
+void Core::commandVolumeDown(double factor) {
+	audioVolume /= factor;
+	if (audioVolume < 0.02) {
+		// allow 0
+		audioVolume = 0;
+	}
+	addMessage("Volume: " + std::to_string(audioVolume), 0xFFFFFF00);
+}
+
+void Core::commandSetVolume(double volume) {
+	audioVolume = volume;
+	if (audioVolume < 0) {
+		audioVolume = 0;
+	}
+	addMessage("Volume: " + std::to_string(emulationSpeed), 0xFFFFFF00);
 }
 
 void Core::commandLoadROM(std::string filename) {

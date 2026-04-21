@@ -125,11 +125,11 @@ private:
 
 
 	// REGISTERS
-	uint8_t a;          // Accumulator
-	uint8_t x;          // X Register
-	uint8_t y;          // Y Register
-	uint16_t pc;        // Program Counter
-	uint8_t s;          // Stack Pointer
+	uint8_t a;        // Accumulator
+	uint8_t x;        // X Register
+	uint8_t y;        // Y Register
+	uint16_t pc;      // Program Counter
+	uint8_t s;        // Stack Pointer
 	StatusRegister p; // Status Register
 
 	Bus* bus;
