@@ -2,14 +2,7 @@
 #include "cart.hpp"
 #include "ppu.hpp"
 
-Composite::Composite() {
-
-}
-
-
-
-
-
+Composite::Composite() {}
 
 void Composite::renderScanline(int scanline) {
 	int pixel = scanline * 256; // not << 8 in case of negative scanlines
@@ -21,34 +14,43 @@ void Composite::renderScanline(int scanline) {
 
 	// actual bg color
 	uint32_t bgColorIdx = ppu->palette[0] & 0x3F; // get background color index from palette
-	uint32_t bgColor = defaultARGBpal[bgColorIdx]; // get ARGB color from palette
+	uint32_t bgColor = defaultARGBpal[bgColorIdx] | 0xFF000000; // Enforce opaque alpha
 
 	for (int x = 0; x < 256; x++) { // fill line with bg color
 		frameBuffer[pixel + x] = bgColor;
 	}
 
-	// back priority sprites
-	uint32_t spriteBackLine[256] = {0};
+	// Single pass sprite rendering to enforce correct OAM multiplexing
+	uint32_t spriteLine[256] = {0};
 	if (ppu->MASKshowSprites())
-		renderSpritesAtLine(scanline, 1, spriteBackLine);
+		renderSpritesAtLine(scanline, spriteLine);
+
 	// render background tiles
 	uint32_t bgLine[256] = {0};
 	if (ppu->MASKshowBackground())
 		renderBackgroundAtLine(scanline, bgLine);
-	// front priority sprites
-	uint32_t spriteFrontLine[256] = {0};
-	if (ppu->MASKshowSprites())
-		renderSpritesAtLine(scanline, 0, spriteFrontLine);
 
 	// composite bg and sprites onto frame buffer
 	for (int x = 0; x < 256; x++) {
-		// if sprite pixel is not transparent, draw it over bg
-		if ((spriteFrontLine[x] & 0xFF000000) != 0) {
-			frameBuffer[pixel + x] = spriteFrontLine[x];
-		} else if ((bgLine[x] & 0xFF000000) != 0) {
-			frameBuffer[pixel + x] = bgLine[x];
-		} else if ((spriteBackLine[x] & 0xFF000000) != 0) {
-			frameBuffer[pixel + x] = spriteBackLine[x];
+		uint32_t spr = spriteLine[x];
+		uint32_t bg = bgLine[x];
+		
+		bool hasSpr = (spr & 0xFF000000) != 0;
+		bool hasBg = (bg & 0xFF000000) != 0;
+		
+		// Priority bit was encoded into the alpha channel during the sprite pass
+		bool backPriority = (spr & 0xFF000000) == 0xFE000000;
+
+		if (hasSpr && hasBg) {
+			if (backPriority) {
+				frameBuffer[pixel + x] = bg; // BG wins against back-priority sprite
+			} else {
+				frameBuffer[pixel + x] = spr | 0xFF000000; // Front sprite wins (restore pure alpha)
+			}
+		} else if (hasSpr) {
+			frameBuffer[pixel + x] = spr | 0xFF000000;
+		} else if (hasBg) {
+			frameBuffer[pixel + x] = bg;
 		}
 	}
 }
@@ -87,23 +89,20 @@ void Composite::renderBackgroundAtLine(int scanline, uint32_t* lineBuf) {
 
 		if (lineV.coarseX == 31) {
 			lineV.coarseX = 0;
-			lineV.nametableX = ~lineV.nametableX;
+			lineV.nametableX ^= 1;
 		} else {
 			lineV.coarseX++;
 		}
 	}
 }
 
-void Composite::renderSpritesAtLine(int scanline, int priority, uint32_t* lineBuf) {
+void Composite::renderSpritesAtLine(int scanline, uint32_t* lineBuf) {
+	int height = ppu->CTRLspriteSize();
+
 	for (int s = 63; s >= 0; s--) { // 0 rendered on top
-		if (((ppu->oam.sprites[s].attr & 0x20) >> 5) != priority) {
-			continue; // skip sprites that don't match the priority
-		}
-
 		int spriteY = ppu->oam.sprites[s].y + 1;
-
 		int y = scanline - spriteY;
-		if (y < 0 || y >= 8) continue; // tile not on this line
+		if (y < 0 || y >= height) continue; // tile not on this line
 
 		int spriteX = ppu->oam.sprites[s].x;
 		int spriteIdx = ppu->oam.sprites[s].tileIdx;
@@ -111,35 +110,46 @@ void Composite::renderSpritesAtLine(int scanline, int priority, uint32_t* lineBu
 
 		bool flipX = (attributes & 0x40) != 0;
 		bool flipY = (attributes & 0x80) != 0;
+		bool backPriority = (attributes & 0x20) != 0;
 		uint8_t paletteIndex = (attributes & 0x03) + 4; // sprite palettes start at index 4
 
-		// get the full tile data from CHR ROM/RAM
-		// each tile is 16 bytes. the first 8 bytes are the low bits of each pixel row,
-		// and the next 8 bytes are the high bits of each pixel row.
-		// 2 bits per pixel, a bit from each byte, so 2 bytes per row:
-		// (08)(08)(08)(08)(08)(08)(08)(08)
-		// (19)(19)(19)(19)(19)(19)(19)(19)
-		// (2A)(2A)(2A)(2A)(2A)(2A)(2A)(2A)
-		// (3B)(3B)(3B)(3B)(3B)(3B)(3B)(3B)
-		// etc...
+		int row = flipY ? ((height - 1) - y) : y;
+		uint16_t patTable;
+		uint8_t tile;
 
-		// we only need one row (2 bytes) at a time
-		uint8_t highByte, lowByte;
+		if (height == 8) {
+			patTable = ppu->CTRLspritePatternTableAddress();
+			tile = spriteIdx;
+		} else {
+			// 8x16 mode ignores PPUCTRL pattern table and uses the tile's lowest bit
+			patTable = (spriteIdx & 1) ? 0x1000 : 0x0000;
+			tile = spriteIdx & 0xFE;
+			// If the calculated row falls into the bottom 8 pixels, jump to the next tile
+			if (row >= 8) {
+				tile++;
+				row -= 8;
+			}
+		}
 
-		int row = flipY ? (7 - y) : y;
-		highByte = cart->readChr(ppu->CTRLspritePatternTableAddress() | (spriteIdx * 16 + row));
-		lowByte  = cart->readChr(ppu->CTRLspritePatternTableAddress() | (spriteIdx * 16 + row + 8));
+		uint8_t lowByte  = cart->readChr(patTable | (tile * 16 + row));
+		uint8_t highByte = cart->readChr(patTable | (tile * 16 + row + 8));
 
 		for (int x = 0; x < 8; x++) {
+			int screenX = spriteX + x;
+			if (screenX < 0 || screenX >= 256) continue; // pixel out of bounds
+			
+			// Hardware accuracy: Clip left 8 pixels if requested by PPUMASK
+			if (screenX < 8 && !ppu->MASKshowSpritesLeft()) continue;
+
 			int bit = flipX ? x : (7 - x);
-			uint8_t bit0 = (highByte >> bit) & 0x01;
-			uint8_t bit1 = (lowByte >> bit) & 0x01;
+			uint8_t bit0 = (lowByte >> bit) & 0x01;
+			uint8_t bit1 = (highByte >> bit) & 0x01;
 			uint8_t colorIdx = (bit1 << 1) | bit0;
 
-			if (spriteX + x < 0 || spriteX + x >= 256) continue; // pixel out of bounds
-
 			if (colorIdx != 0) {
-				lineBuf[spriteX + x] = ppu->decodedPalette[paletteIndex * 4 + colorIdx];
+				uint32_t color = ppu->decodedPalette[paletteIndex * 4 + colorIdx];
+				// Encode priority directly into the alpha channel so the composite loop can resolve it
+				lineBuf[screenX] = (color & 0x00FFFFFF) | (backPriority ? 0xFE000000 : 0xFF000000);
 			}
 		}
 	}

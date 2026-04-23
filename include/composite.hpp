@@ -18,13 +18,10 @@ private:
 public:
 	Composite();
 
-
-
 	void renderScanline(int scanline);
 
 	void renderBackgroundAtLine(int scanline, uint32_t* lineBuf);
-	void renderNametableAtLine(int nametableIdx, int scanline, int xPos, int yPos, uint32_t* lineBuf);
-	void renderSpritesAtLine(int scanline, int spriteIdx, uint32_t* lineBuf);
+	void renderSpritesAtLine(int scanline, uint32_t* lineBuf);
 
 	uint32_t* getBuffer();
 
@@ -33,7 +30,3 @@ public:
 	void connectCart(Cart* cart);
 	void disconnectCart();
 };
-
-
-
-#include "ppu.hpp"
