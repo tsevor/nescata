@@ -27,107 +27,107 @@ void PPU::reset() {
 	for (int i = 0; i < 256; i++) oam.raw[i] = 0;
 }
 
-	bool PPU::step(int cycles) {
-		bool frameComplete = false;
-		cycle += cycles;
+bool PPU::step(int cycles) {
+	bool frameComplete = false;
+	cycle += cycles;
 
-		while (cycles > 0) {
-			// Calculate how many dots we can process before hitting the end of the scanline
-			int dotsToScanlineEnd = 341 - dot;
-			int stepDots = (cycles < dotsToScanlineEnd) ? cycles : dotsToScanlineEnd;
-			
-			int oldDot = dot;
-			dot += stepDots;
-			cycles -= stepDots;
+	while (cycles > 0) {
+		// Calculate how many dots we can process before hitting the end of the scanline
+		int dotsToScanlineEnd = 341 - dot;
+		int stepDots = (cycles < dotsToScanlineEnd) ? cycles : dotsToScanlineEnd;
 
-			// 1. Visible scanline and Pre-render line fetches
-			if (scanline < 240 || scanline == 261) {
-				// Did we cross dot 257 during this chunk?
-				if (oldDot < 257 && dot >= 257) {
-					if (MASKshowBackground() || MASKshowSprites()) {
-						v.coarseX = t.coarseX;
-						v.nametableX = t.nametableX;
-					}
+		int oldDot = dot;
+		dot += stepDots;
+		cycles -= stepDots;
+
+		// 1. Visible scanline and Pre-render line fetches
+		if (scanline < 240 || scanline == 261) {
+			// Did we cross dot 257 during this chunk?
+			if (oldDot < 257 && dot >= 257) {
+				if (MASKshowBackground() || MASKshowSprites()) {
+					v.coarseX = t.coarseX;
+					v.nametableX = t.nametableX;
 				}
-				// Did we cross dot 260 during this chunk?
-				if (oldDot < 260 && dot >= 260) {
-					if (MASKshowBackground() || MASKshowSprites()) {
-						cart->clockIRQ();
-					}
-					
-					// 2. Sprite 0 Hit Evaluation 
-					if (MASKshowSprites() && scanline < 240) {
-						int spriteY = oam.sprites[0].y + 1;
-						int height = CTRLspriteSize();
-						
-						if (scanline >= spriteY && scanline < spriteY + height) {
-							int y = scanline - spriteY;
-							int spriteIdx = oam.sprites[0].tileIdx;
-							uint8_t attr = oam.sprites[0].attr;
-							bool flipY = (attr & 0x80) != 0;
-							
-							int row = flipY ? ((height - 1) - y) : y;
-							uint16_t patTable;
-							uint8_t tile;
+			}
+			// Did we cross dot 260 during this chunk?
+			if (oldDot < 260 && dot >= 260) {
+				if (MASKshowBackground() || MASKshowSprites()) {
+					cart->clockIRQ();
+				}
 
-							if (height == 8) {
-								patTable = CTRLspritePatternTableAddress();
-								tile = spriteIdx;
-							} else {
-								patTable = (spriteIdx & 1) ? 0x1000 : 0x0000;
-								tile = spriteIdx & 0xFE;
-								if (row >= 8) {
-									tile++;
-									row -= 8;
-								}
+				// 2. Sprite 0 Hit Evaluation
+				if (MASKshowSprites() && scanline < 240) {
+					int spriteY = oam.sprites[0].y + 1;
+					int height = CTRLspriteSize();
+
+					if (scanline >= spriteY && scanline < spriteY + height) {
+						int y = scanline - spriteY;
+						int spriteIdx = oam.sprites[0].tileIdx;
+						uint8_t attr = oam.sprites[0].attr;
+						bool flipY = (attr & 0x80) != 0;
+
+						int row = flipY ? ((height - 1) - y) : y;
+						uint16_t patTable;
+						uint8_t tile;
+
+						if (height == 8) {
+							patTable = CTRLspritePatternTableAddress();
+							tile = spriteIdx;
+						} else {
+							patTable = (spriteIdx & 1) ? 0x1000 : 0x0000;
+							tile = spriteIdx & 0xFE;
+							if (row >= 8) {
+								tile++;
+								row -= 8;
 							}
-
-							uint8_t low  = cart->readChr(patTable | (tile * 16 + row));
-							uint8_t high = cart->readChr(patTable | (tile * 16 + row + 8));
-
-							if (low | high) stat.S = 1;
 						}
-					}
-				}
-			}
 
-			// 3. VBlank / NMI Trigger (Check if we crossed dot 1 on scanline 241)
-			if (scanline == 241 && oldDot < 1 && dot >= 1) {
-				stat.V = 1;
-				stat.S = 0;
-				if (CTRLgenerateNMI() && cpu) cpu->triggerNMI();
-			}
+						uint8_t low  = cart->readChr(patTable | (tile * 16 + row));
+						uint8_t high = cart->readChr(patTable | (tile * 16 + row + 8));
 
-			// 4. End of Scanline Logic
-			if (dot == 341) {
-				dot = 0; // Reset for the next scanline
-
-				if (scanline == 261) {
-					// End of Pre-render line -> Frame complete
-					if (MASKshowBackground() || MASKshowSprites()) {
-						v.raw = t.raw;
+						if (low | high) stat.S = 1;
 					}
-					stat.V = 0;
-					stat.S = 0;
-					stat.O = 0;
-					scanline = 0;
-					frame++;
-					frameComplete = true;
-				} else {
-					if (scanline < 240) {
-						if (!skipFrame) {
-							comp->renderScanline(scanline);
-						}
-						if (MASKshowBackground() || MASKshowSprites()) {
-							incrementY();
-						}
-					}
-					scanline++;
 				}
 			}
 		}
 
-		return frameComplete;
+		// 3. VBlank / NMI Trigger (Check if we crossed dot 1 on scanline 241)
+		if (scanline == 241 && oldDot < 1 && dot >= 1) {
+			stat.V = 1;
+			stat.S = 0;
+			if (CTRLgenerateNMI() && cpu) cpu->triggerNMI();
+		}
+
+		// 4. End of Scanline Logic
+		if (dot == 341) {
+			dot = 0; // Reset for the next scanline
+
+			if (scanline == 261) {
+				// End of Pre-render line -> Frame complete
+				if (MASKshowBackground() || MASKshowSprites()) {
+					v.raw = t.raw;
+				}
+				stat.V = 0;
+				stat.S = 0;
+				stat.O = 0;
+				scanline = 0;
+				frame++;
+				frameComplete = true;
+			} else {
+				if (scanline < 240) {
+					if (!skipFrame) {
+						comp->renderScanline(scanline);
+					}
+					if (MASKshowBackground() || MASKshowSprites()) {
+						incrementY();
+					}
+				}
+				scanline++;
+			}
+		}
+	}
+
+	return frameComplete;
 }
 
 // PPU Register Read/Writes
