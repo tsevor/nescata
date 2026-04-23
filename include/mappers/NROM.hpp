@@ -11,11 +11,9 @@ public:
 	NROM(Cart* cartRef) {
 		cart = cartRef;
 		mapperID = 0;
-		prgBankCount = cart->romBankCount; // Use the raw count from your new Cart parser
+		prgBankCount = cart->romBankCount;
 		chrBankCount = cart->chrBankCount;
 
-		// If 16KB (1 bank), mask is 0x3FFF. This naturally mirrors $8000 to $C000.
-		// If 32KB (2 banks), mask is 0x7FFF. 
 		prgMask = (prgBankCount > 1) ? 0x7FFF : 0x3FFF;
 	}
 
@@ -32,7 +30,7 @@ public:
 
 	uint8_t readChr(uint16_t addr) override {
 		if (addr < 0x2000) {
-			return cart->chrData[addr]; // 0x1FFF mask is implied by the < 0x2000 check
+			return cart->chrData[addr];
 		}
 		return 0;
 	}

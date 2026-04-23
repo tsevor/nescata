@@ -65,6 +65,8 @@ public:
 	uint8_t readChr(uint16_t addr);
 	void writeChr(uint16_t addr, uint8_t val);
 
+	void clockIRQ();
+
 	int mirrorNametable(int ntIdx);
 
 private:

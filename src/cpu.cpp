@@ -56,7 +56,6 @@ void CPU::push16(uint16_t val) {
 	push(val & 0xff);
 }
 
-
 // getters and setters
 
 bool CPU::isJammed() {
@@ -70,7 +69,6 @@ long int CPU::getCycles() {
 void CPU::enableLogging(bool enable) {
 	enableCpuLog = enable;
 }
-
 
 void CPU::connectBus(Bus* busRef) {
 	bus = busRef;
@@ -140,7 +138,6 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
 			return 0; // Should not happen
 	}
 }
-
 
 uint8_t CPU::_getStatus(bool flagB) {
 	if (flagB)
@@ -845,7 +842,7 @@ bool CPU::clock() {
 		_interrupt(VECTOR_IRQ);
 		int diff_cycles = cycles - prev_cycles;
 		if (bus) bus->clock(diff_cycles * 12);
-		return false; 
+		return false;
 	}
 
 	interruptDelay = false; // Reset the delay so the subsequent instruction can be hijacked
@@ -897,8 +894,6 @@ bool CPU::clock() {
 	int diff_cycles = cycles - prev_cycles;
 
 	return bus->clock(diff_cycles * 12);
-
-	return false;
 }
 
 void CPU::triggerNMI() {

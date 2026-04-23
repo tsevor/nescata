@@ -4,9 +4,6 @@
 #include "cart.hpp"
 #include "controller.hpp"
 
-#include <algorithm>
-
-
 Bus::Bus() {
 	// Initialize memory
 	std::fill(std::begin(memory), std::end(memory), 0);
@@ -32,9 +29,6 @@ uint8_t Bus::read(uint16_t addr) {
 	if (addr < 0x2000) {
 		return memory[addr & 0x7FF];
 	}
-	if (addr >= 0x8000) {
-		return cart->mapper->read(addr);
-	}
 	if (addr >= 0x4020) { // Catch $4020 - $7FFF
 		return cart->mapper->read(addr);
 	}
@@ -56,6 +50,7 @@ uint8_t Bus::read(uint16_t addr) {
 		case 0x4016:
 			return controller1->read();
 		case 0x4017:
+			// Reading 0x4017 fetches Player 2 input
 			return controller2->read();
 		case 0x4018 ... 0x401F: // APU and I/O functionality that is normally disabled
 			// Placeholder for disabled APU and I/O read
@@ -67,18 +62,14 @@ uint8_t Bus::read(uint16_t addr) {
 
 void Bus::write(uint16_t addr, uint8_t val) {
 
-
 	// faster to just pull it out of the switch
 	if (addr < 0x2000) {
 		memory[addr & 0x7FF] = val;
 		return;
 	}
-	if (addr >= 0x8000) {
-		cart->mapper->write(addr, val); // Delegate to cartridge
-		return;
-	}
 	if (addr >= 0x4020) {
 		cart->mapper->write(addr, val);
+		return; // Explicitly return to prevent switch fallthrough
 	}
 
 	switch (addr) {
@@ -117,16 +108,21 @@ void Bus::write(uint16_t addr, uint8_t val) {
 					data[i] = read(startAddr | (i & 0xFF));
 				}
 				ppu->OAMDMAwrite(data);
+				// WARNING: CPU desync. You must instruct your CPU object to suspend itself
+				// for 513 or 514 cycles right here.
 				break;
 			}
 		case 0x4015:
 			apu->write(addr, val);
 			break;
 		case 0x4016:
+			// Writing to 0x4016 strobes BOTH controllers on the hardware level
 			controller1->write(val);
+			controller2->write(val);
 			break;
 		case 0x4017:
-			controller2->write(val);
+			// Writing to 0x4017 configures the APU Frame Counter, NOT the controller
+			apu->write(addr, val);
 			break;
 		default:
 			// unmapped, do nothing
@@ -134,14 +130,12 @@ void Bus::write(uint16_t addr, uint8_t val) {
 	}
 }
 
-
 bool Bus::clock(int cycles) {
 	// cpu sends in cycles passed * 12 to get master clock cycles
 	apu->step(cycles / 12);
 	// do ppu last to pass nmi
 	return ppu->step(cycles / 4);
 }
-
 
 void Bus::connectAPU(APU* apuRef) {
 	apu = apuRef;
@@ -161,9 +155,11 @@ void Bus::disconnectPPU() {
 
 void Bus::connectCart(Cart* cartRef) {
 	cart = cartRef;
+	cart->bus = this;
 }
 
 void Bus::disconnectCart() {
+	cart->bus = nullptr;
 	cart = nullptr;
 }
 

@@ -1,6 +1,7 @@
 #include "cart.hpp"
 #include "mappers/NROM.hpp"  // mapper 0
 #include "mappers/MMC1.hpp"  // mapper 1
+#include "mappers/MMC3.hpp"  // mapper 4
 #include "mappers/AxROM.hpp" // mapper 7
 
 Cart::Cart() {
@@ -72,7 +73,7 @@ Cart::Cart(std::string fName) {
 	if (hasTrainer) {
 		fseek(romFile, 512, SEEK_CUR);
 	}
-	
+
 	prgData = new uint8_t[romSize];
 	fread(prgData, sizeof(uint8_t), romSize, romFile);
 
@@ -97,39 +98,27 @@ Cart::Cart(std::string fName) {
 }
 
 uint8_t Cart::read(uint16_t addr) {
-	if (!blank) {
-		return mapper->read(addr);
-		// leave handling up to mapper
-	}
-	return 0;
+	return mapper->read(addr);
 }
 
 void Cart::write(uint16_t addr, uint8_t val) {
-	if (!blank) {
-		mapper->write(addr, val);
-		// leave handling up to mapper
-	}
+	mapper->write(addr, val);
 }
 
 uint8_t Cart::readChr(uint16_t addr) {
-	if (!blank) {
-		return mapper->readChr(addr);
-		// leave handling up to mapper
-	}
-	return 0;
+	return mapper->readChr(addr);
 }
 
 void Cart::writeChr(uint16_t addr, uint8_t val) {
-	if (!blank) {
-		mapper->writeChr(addr, val);
-		// leave handling up to mapper
-	}
+	mapper->writeChr(addr, val);
+}
+
+void Cart::clockIRQ() {
+	mapper->clockIRQ();
 }
 
 int Cart::mirrorNametable(int ntIdx) {
-	if (mapper)
-		return mapper->mirrorNametable(ntIdx);
-	return ntIdx; // default no mirror
+	return mapper->mirrorNametable(ntIdx);
 }
 
 void Cart::pickMapper(int mapperID) {
@@ -139,6 +128,9 @@ void Cart::pickMapper(int mapperID) {
 			break;
 		case 1:
 			mapper = new MMC1(this);
+			break;
+		case 4:
+			mapper = new MMC3(this);
 			break;
 		case 7:
 			mapper = new AxROM(this);

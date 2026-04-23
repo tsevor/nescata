@@ -22,76 +22,89 @@ void PPU::reset() {
 	w = true;
 
 	// Clear VRAM and OAM
-	// VRAM is 0x800 bytes (nametables + palettes are accessed through mirroring)
-	for (int i = 0; i < 0x800; i++) vram[i] = 0;
+	// VRAM expanded to 0x1000 to safely buffer 4-screen mirroring configs
+	for (int i = 0; i < 0x1000; i++) vram[i] = 0;
 	for (int i = 0; i < 256; i++) oam.raw[i] = 0;
 }
 
 bool PPU::step(int cycles) {
-	dot += cycles;
-	cycle += cycles;
+	bool frameComplete = false;
 
-	if (dot >= 257 && (dot - cycles) < 257 && scanline < 240) {
-		if (MASKshowBackground() || MASKshowSprites()) {
-			v.coarseX = t.coarseX;
-			v.nametableX = t.nametableX;
+	while (cycles > 0) {
+		dot++;
+		cycle++;
+		cycles--;
+
+		// 1. Visible scanline and Pre-render line fetches
+		if (scanline < 240 || scanline == 261) {
+			if (dot == 257) {
+				if (MASKshowBackground() || MASKshowSprites()) {
+					v.coarseX = t.coarseX;
+					v.nametableX = t.nametableX;
+				}
+			}
+			if (dot == 260) {
+				if (MASKshowBackground() || MASKshowSprites()) {
+					cart->clockIRQ();
+				}
+			}
+		}
+
+		// 2. Sprite 0 Hit Evaluation
+		if (MASKshowSprites() && scanline < 240 && dot == 260) {
+			int spriteY = oam.sprites[0].y + 1;
+			if (scanline >= spriteY && scanline < spriteY + 8) {
+				int y = scanline - spriteY;
+				int spriteIdx = oam.sprites[0].tileIdx;
+				uint8_t attr = oam.sprites[0].attr;
+				bool flipY = (attr & 0x80) != 0;
+				int row = flipY ? (7 - y) : y;
+
+				uint8_t low  = cart->readChr(CTRLspritePatternTableAddress() | (spriteIdx * 16 + row));
+				uint8_t high = cart->readChr(CTRLspritePatternTableAddress() | (spriteIdx * 16 + row + 8));
+
+				if (low | high) stat.S = 1;
+			}
+		}
+
+		// 3. VBlank / NMI Trigger (Guaranteed to hit precisely once at dot 1)
+		if (scanline == 241 && dot == 1) {
+			stat.V = 1;
+			stat.S = 0;
+			if (CTRLgenerateNMI() && cpu) cpu->triggerNMI();
+		}
+
+		// 4. End of Scanline Logic
+		if (dot == 341) {
+			dot = 0;
+
+			if (scanline == 261) {
+				// End of Pre-render line -> Frame complete
+				if (MASKshowBackground() || MASKshowSprites()) {
+					v.raw = t.raw;
+				}
+				stat.V = 0;
+				stat.S = 0;
+				stat.O = 0;
+				scanline = 0;
+				frame++;
+				frameComplete = true;
+			} else {
+				if (scanline < 240) {
+					if (!skipFrame) {
+						comp->renderScanline(scanline);
+					}
+					if (MASKshowBackground() || MASKshowSprites()) {
+						incrementY();
+					}
+				}
+				scanline++;
+			}
 		}
 	}
 
-	if (dot < 341) {
-		return false;
-	}
-
-	if (MASKshowSprites() && scanline < 240) {
-		int spriteY = oam.sprites[0].y + 1;
-		if (scanline >= spriteY && scanline < spriteY + 8) {
-			int y = scanline - spriteY;
-			int spriteIdx = oam.sprites[0].tileIdx;
-			uint8_t attr = oam.sprites[0].attr;
-			bool flipY = (attr & 0x80) != 0;
-			int row = flipY ? (7 - y) : y;
-
-			uint8_t low  = cart->readChr(CTRLspritePatternTableAddress() | (spriteIdx * 16 + row));
-			uint8_t high = cart->readChr(CTRLspritePatternTableAddress() | (spriteIdx * 16 + row + 8));
-
-			if (low | high) stat.S = 1;
-		}
-	}
-
-	bool ret = false;
-
-	if (scanline == 241) {
-		stat.V = 1;
-		stat.S = 0;
-		if (CTRLgenerateNMI() && cpu) cpu->triggerNMI();
-	} else if (scanline == 261) {
-		if (MASKshowBackground() || MASKshowSprites()) {
-			v.raw = t.raw;
-		}
-		stat.V = 0;
-		stat.S = 0;
-		stat.O = 0;
-	} else if (scanline >= 262) {
-		scanline = 0;
-		frame++;
-		ret = true;
-	}
-
-	dot -= 341;
-	if (scanline < 240) {
-		if (!skipFrame) {
-			comp->renderScanline(scanline);
-		}
-
-		if (MASKshowBackground() || MASKshowSprites()) {
-			incrementY();
-		}
-	}
-	scanline++;
-
-	return ret;
+	return frameComplete;
 }
-
 
 // PPU Register Read/Writes
 
@@ -259,7 +272,7 @@ void PPU::ADDRwrite(uint8_t value) {
 void PPU::incrementX() {
 	if (v.coarseX == 31) {
 		v.coarseX = 0;
-		v.nametableX = ~v.nametableX;
+		v.nametableX ^= 1;
 	} else {
 		v.coarseX++;
 	}
@@ -272,7 +285,7 @@ void PPU::incrementY() {
 		v.fineY = 0;
 		if (v.coarseY == 29) {
 			v.coarseY = 0;
-			v.nametableY = ~v.nametableY;
+			v.nametableY ^= 1;
 		} else if (v.coarseY == 31) {
 			v.coarseY = 0;
 		} else {
@@ -283,6 +296,8 @@ void PPU::incrementY() {
 
 uint8_t PPU::read() {
 	uint16_t a = v.raw & 0x3FFF;
+	if (a >= 0x3000 && a <= 0x3EFF) a -= 0x1000;
+
 	uint8_t result = 0;
 	if (a < 0x2000)
 		result = useBuffer(cart->readChr(a));
@@ -290,8 +305,20 @@ uint8_t PPU::read() {
 		result = useBuffer(readNametable(a));
 	else
 	switch (a) {
-		case 0x3F00 ... 0x3FFF:
+		case 0x3F10:
+		case 0x3F14:
+		case 0x3F18:
+		case 0x3F1C:
+			result = palette[(a ^ 0x10) & 0x1F];
+			buffer = readNametable(a - 0x1000);
+			break;
+		case 0x3F00 ... 0x3F0F:
+		case 0x3F11 ... 0x3F13:
+		case 0x3F15 ... 0x3F17:
+		case 0x3F19 ... 0x3F1B:
+		case 0x3F1D ... 0x3FFF:
 			result = palette[a & 0x1F];
+			buffer = readNametable(a - 0x1000);
 			break;
 		default:
 			result = buffer;
@@ -304,6 +331,7 @@ uint8_t PPU::read() {
 
 void PPU::write(uint8_t value) {
 	uint16_t a = v.raw & 0x3FFF;
+	if (a >= 0x3000 && a <= 0x3EFF) a -= 0x1000;
 
 	switch (a) {
 		case 0x0000 ... 0x1FFF:
