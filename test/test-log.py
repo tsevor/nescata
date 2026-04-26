@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-with open("nestest.log", "r") as f:
+with open("test/nestest.log", "r") as f:
 	oldlog = f.read().strip().split("\n")
 
 goodlog = []
@@ -19,7 +19,7 @@ C000 4C F5 C5 JMP a:00 x:00 y:00 p:00100100 sp:FD cyc:7
 		"y:" + line[60:62] + " " +
 		"p:" + f"{int(line[65:67], 16):08b}" + " " +
 		"sp:" + line[71:73] + " " +
-		# "ppu:" + line[78:85] + " " +
+		"ppu:" + line[78:85] + " " +
 		"cyc:" + line[90:]
 		
 	)

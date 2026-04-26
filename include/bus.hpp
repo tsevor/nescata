@@ -14,13 +14,14 @@ class Bus {
 private:
 	uint8_t memory[0x800]; // 2KB internal memory
 
-	APU* apu = nullptr;
+public:
+
 	PPU* ppu = nullptr;
+	APU* apu = nullptr;
 	Cart* cart = nullptr;
 	Controller* controller1 = nullptr;
 	Controller* controller2 = nullptr;
-public:
-
+	
 	bool* irqLine = nullptr;
 
 	bool cheatsEnabled = false;

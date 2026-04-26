@@ -34,10 +34,6 @@ private:
 	
 	uint32_t decodedPalette[32]; // Caching
 
-	int cycle;          // Current PPU cycle
-	int dot;            // Current PPU dot (pixel) within the scanline
-	int scanline;       // Current PPU scanline
-	int frame;          // Current frame count
 
 	Cart* cart = nullptr;
 	Composite* comp = nullptr;
@@ -45,6 +41,11 @@ private:
 
 public:
 	PPU();
+	
+	int cycle;          // Current PPU cycle
+	int frame;          // Current frame count
+	int scanline;       // Current PPU scanline
+	int dot;            // Current PPU dot (pixel) within the scanline
 	
 	bool skipFrame = false;
 

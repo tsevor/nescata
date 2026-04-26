@@ -816,8 +816,13 @@ void CPU::reset() {
 	p.I = 1;
 	p.D = 0;
 	pc = readMem16(RESET_VECTOR);
+	// pc = 0xc000; cycles += 2;
 	cycles += 5;
 	jammed = false;
+
+	if (bus) {
+		bus->clock(7 * 12); // 7 CPU cycles * 12 master cycles
+	}
 }
 
 void CPU::powerOn() {
@@ -942,8 +947,9 @@ void CPU::logInstruction(uint16_t instrPc, uint8_t opcode, const uint8_t* opcode
 		p_bits[7 - i] = ((p.raw >> i) & 1) ? '1' : '0';
 	}
 	p_bits[8] = '\0';
-	fprintf(f, " a:%02X x:%02X y:%02X p:%s sp:%02X cyc:%ld\n",
-			a, x, y, p_bits, s, prev_cycles);
+	// C000 4C F5 C5 JMP a:00 x:00 y:00 p:00100100 sp:FD ppu:  0, 21 cyc:7
+	fprintf(f, " a:%02X x:%02X y:%02X p:%s sp:%02X ppu:%3d,%3d cyc:%ld\n",
+			a, x, y, p_bits, s, bus->ppu->scanline, bus->ppu->dot, prev_cycles);
 
 	fclose(f);
 }

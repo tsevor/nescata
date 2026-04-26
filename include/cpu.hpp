@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "bus.hpp"
+#include "ppu.hpp"
 
 union StatusRegister {
 	struct {
@@ -25,13 +26,13 @@ class CPU {
 private:
 
 	// ENUMS
-	
+
 	enum AccessType {
 		READ,
 		WRITE,
 		RMW
 	};
-	
+
 	enum AddressingMode {
 		IMP, // implied
 		ACC, // accumulator
@@ -95,7 +96,7 @@ private:
 		"BCS", "LDA", "JAM", "LAX", "LDY", "LDA", "LDX", "LAX", "CLV", "LDA", "TSX", "LAS", "LDY", "LDA", "LDX", "LAX",
 		"CPY", "CMP", "NOP", "DCP", "CPY", "CMP", "DEC", "DCP", "INY", "CMP", "DEX", "SBX", "CPY", "CMP", "DEC", "DCP",
 		"BNE", "CMP", "JAM", "DCP", "NOP", "CMP", "DEC", "DCP", "CLD", "CMP", "NOP", "DCP", "NOP", "CMP", "DEC", "DCP",
-		
+
 		// "CPX", "SBC", "NOP", "ISC", "CPX", "SBC", "INC", "ISC", "INX", "SBC", "NOP", "USB", "CPX", "SBC", "INC", "ISC",
 		"CPX", "SBC", "NOP", "ISB", "CPX", "SBC", "INC", "ISB", "INX", "SBC", "NOP", "SBC", "CPX", "SBC", "INC", "ISB", // match nestest
 		// "BEQ", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC", "SED", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC",
@@ -144,17 +145,18 @@ private:
 	// STATE
 
 	long int cycles;
+
 	bool enableCpuLog = false;
 
 	bool pageCrossed;
-	
+
 	bool interruptDelay = false;
-	
+
 
 public:
 
 	bool irqPending = false;
-	
+
 	bool jammed = false;
 
 	CPU();
