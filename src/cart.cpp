@@ -9,9 +9,11 @@ Cart::Cart() {
 }
 
 Cart::~Cart() {
-	delete mapper;
-	delete[] prgData;
-	delete[] chrData;
+	if (blank) return;
+	
+	if (mapper) delete mapper;
+	if (prgData) delete[] prgData;
+	if (chrData) delete[] chrData;
 }
 
 Cart::Cart(std::string fName) {

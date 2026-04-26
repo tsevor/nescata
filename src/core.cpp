@@ -21,14 +21,16 @@ void Core::run() {
 		}
 	}
 
-	cpu.powerOn();
-	cpu.reset();
+	if (cart) {
+		cpu.powerOn();
+		cpu.reset();
+	}
 
 	int frameSkipCounter = 0;
 	bool shouldRenderVisuals = true;
 
 	while (true) {
-		if (paused || emulationSpeed == 0.0) {
+		if (paused || emulationSpeed == 0.0 || !cart) {
 			// paused
 			if (!passFrame) {
 				SDL_Delay(100);
@@ -39,6 +41,8 @@ void Core::run() {
 				renderMessages();
 				handleWindowEvents();
 				window.updateSurface(1.0, false);
+
+				continue;
 			}
 		}
 
