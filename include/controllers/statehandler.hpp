@@ -2,8 +2,6 @@
 
 #include <cstdint>
 
-
-
 class ControllerStateHandler {
 public:
 	virtual void write(uint8_t value) = 0;

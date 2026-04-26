@@ -2,7 +2,6 @@
 #include "cart.hpp"
 
 #include <iostream>
-#include <cstring>
 
 int main(int argc, char* argv[]) {
 	if (argc > 2) {
