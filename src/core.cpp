@@ -31,7 +31,7 @@ void Core::run() {
 	while (true) {
 		if (paused || emulationSpeed == 0.0 || !cart) {
 			// paused
-			if (!passFrame) {
+			if (!passFrame || !cart) {
 				SDL_Delay(100);
 				uint32_t* frameBuffer = comp.getBuffer();
 				if (frameBuffer) {
