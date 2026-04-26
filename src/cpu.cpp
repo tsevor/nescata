@@ -284,14 +284,17 @@ void CPU::op_ASL(AddressingMode mode) {
 }
 
 void CPU::op_BCC(AddressingMode mode) {
+	(void)mode;
 	_branch(p.C == 0);
 }
 
 void CPU::op_BCS(AddressingMode mode) {
+	(void)mode;
 	_branch(p.C == 1);
 }
 
 void CPU::op_BEQ(AddressingMode mode) {
+	(void)mode;
 	_branch(p.Z == 1);
 }
 
@@ -303,48 +306,58 @@ void CPU::op_BIT(AddressingMode mode) {
 }
 
 void CPU::op_BNE(AddressingMode mode) {
+	(void)mode;
 	_branch(p.Z == 0);
 }
 
 void CPU::op_BMI(AddressingMode mode) {
+	(void)mode;
 	_branch(p.N == 1);
 }
 
 void CPU::op_BPL(AddressingMode mode) {
+	(void)mode;
 	_branch(p.N == 0);
 }
 
 void CPU::op_BRK(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	pc++;
 	_interrupt(VECTOR_BRK);
 }
 
 void CPU::op_BVS(AddressingMode mode) {
+	(void)mode;
 	_branch(p.V == 1);
 }
 
 void CPU::op_BVC(AddressingMode mode) {
+	(void)mode;
 	_branch(p.V == 0);
 }
 
 void CPU::op_CLC(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	p.C = 0;
 }
 
 void CPU::op_CLD(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	p.D = 0;
 }
 
 void CPU::op_CLI(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	p.I = 0;
 	interruptDelay = true;
 }
 
 void CPU::op_CLV(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	p.V = 0;
 }
@@ -371,12 +384,14 @@ void CPU::op_DEC(AddressingMode mode) {
 }
 
 void CPU::op_DEX(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	x--;
 	_setZNFlags(x);
 }
 
 void CPU::op_DEY(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	y--;
 	_setZNFlags(y);
@@ -397,12 +412,14 @@ void CPU::op_INC(AddressingMode mode) {
 }
 
 void CPU::op_INX(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	x++;
 	_setZNFlags(x);
 }
 
 void CPU::op_INY(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	y++;
 	_setZNFlags(y);
@@ -413,6 +430,7 @@ void CPU::op_JMP(AddressingMode mode) {
 }
 
 void CPU::op_JSR(AddressingMode mode) {
+	(void)mode;
 	uint8_t low = readMem(pc++);
 	readMem(STACK_BASE + s); // Dummy stack read
 	push16(pc);
@@ -466,16 +484,19 @@ void CPU::op_ORA(AddressingMode mode) {
 }
 
 void CPU::op_PHA(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	push(a);
 }
 
 void CPU::op_PHP(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	push(_getStatus(true));
 }
 
 void CPU::op_PLA(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	readMem(STACK_BASE + s); // Dummy stack read
 	a = pull();
@@ -483,6 +504,7 @@ void CPU::op_PLA(AddressingMode mode) {
 }
 
 void CPU::op_PLP(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	readMem(STACK_BASE + s); // Dummy stack read
 	_setStatus(pull());
@@ -526,6 +548,7 @@ void CPU::op_ROR(AddressingMode mode) {
 }
 
 void CPU::op_RTI(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	readMem(STACK_BASE + s); // Dummy stack read
 	_setStatus(pull());
@@ -533,6 +556,7 @@ void CPU::op_RTI(AddressingMode mode) {
 }
 
 void CPU::op_RTS(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	readMem(STACK_BASE + s); // Dummy stack read
 	pc = pull16();
@@ -545,16 +569,19 @@ void CPU::op_SBC(AddressingMode mode) {
 }
 
 void CPU::op_SEC(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	p.C = 1;
 }
 
 void CPU::op_SED(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	p.D = 1;
 }
 
 void CPU::op_SEI(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	p.I = 1;
 }
@@ -572,35 +599,41 @@ void CPU::op_STY(AddressingMode mode) {
 }
 
 void CPU::op_TAX(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	x = a;
 	_setZNFlags(x);
 }
 
 void CPU::op_TAY(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	y = a;
 	_setZNFlags(y);
 }
 
 void CPU::op_TSX(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	x = s;
 	_setZNFlags(x);
 }
 
 void CPU::op_TXA(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	a = x;
 	_setZNFlags(a);
 }
 
 void CPU::op_TXS(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	s = x;
 }
 
 void CPU::op_TYA(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	a = y;
 	_setZNFlags(a);
@@ -804,6 +837,7 @@ void CPU::op_USBC(AddressingMode mode) {
 }
 
 void CPU::op_JAM(AddressingMode mode) {
+	(void)mode;
 	readMem(pc); // Dummy read
 	jammed = true;
 }

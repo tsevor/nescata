@@ -31,6 +31,8 @@ public:
 	void clockTimer();
 	void clockEnvelope();
 	void clockLength();
+	
+	void reset();
 
 	uint8_t getOutput();
 };

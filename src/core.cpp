@@ -60,21 +60,24 @@ void Core::run() {
 			}
 
 			// AUDIO LOGIC
-			if (emulationSpeed > 0.1 && emulationSpeed < 20) {
-				uint8_t* audioBuffer = apu.swapBuffers();
+			if (emulationSpeed > 0.1 && emulationSpeed < 100) {
+				int8_t* audioBuffer = apu.getBuffer();
 				int scaledBufferLen = 735 / emulationSpeed;
+				double targetBufferLen = 735.0 / emulationSpeed;
+				bufferCompensation += targetBufferLen - scaledBufferLen;
+				if (bufferCompensation > 1.0) {
+					scaledBufferLen++;
+					bufferCompensation -= 1.0;
+				} else if (bufferCompensation < -1.0) {
+					scaledBufferLen--;
+					bufferCompensation += 1.0;
+				}
 
 				for (int i = 0; i < scaledBufferLen; i++) {
 					scaledAudioBuffer[i] = audioBuffer[(i * 735) / scaledBufferLen] * audioVolume;
 				}
+				
 				window.queueAudio(scaledAudioBuffer, scaledBufferLen);
-			}
-
-			// AUDIO SYNC
-			if (emulationSpeed == 1.0) {
-				while (window.getQueuedAudioSize() > 4096 && !paused) {
-					SDL_Delay(1);
-				}
 			}
 
 			// Calculate Skip Logic for the NEXT frame
@@ -82,7 +85,7 @@ void Core::run() {
 			frameSkipCounter++;
 			shouldRenderVisuals = (frameSkipCounter >= speedInt) || passFrame;
 
-			window.updateSurface(passFrame ? 5 : emulationSpeed, ppu.skipFrame);
+			lastFrameTime = window.updateSurface(passFrame ? 5 : emulationSpeed, ppu.skipFrame);
 			passFrame = false;
 
 			if (shouldRenderVisuals) {
@@ -245,6 +248,7 @@ void Core::handleKeyboardEvent(SDL_KeyboardEvent keyEvent) {
 				prevEmulationSpeed = emulationSpeed;
 				emulationSpeed = 5;
 			}
+			break;
 		default:
 			if (pressed && rebindInProgress) {
 				lastKeyScancode = keyEvent.keysym.scancode;

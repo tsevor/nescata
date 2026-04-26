@@ -26,6 +26,7 @@ public:
 	}
 
 	void write(uint16_t addr, uint8_t value) override {
+		(void)addr; (void)value;
 		// NROM has no bank switching, writes are ignored.
 	}
 

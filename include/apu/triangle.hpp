@@ -27,6 +27,8 @@ public:
 	void clockTimer();
 	void clockLinear();
 	void clockLength();
+	
+	void reset();
 
 	uint8_t getOutput();
 };

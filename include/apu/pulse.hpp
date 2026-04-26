@@ -42,6 +42,8 @@ public:
 	void clockEnvelope();
 	void clockLength();
 	void clockSweep();
+	
+	void reset();
 
 	uint8_t getOutput();
 

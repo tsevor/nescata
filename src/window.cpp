@@ -53,7 +53,7 @@ int Window::StartWindow() {
 		return -1;
 	}
 
-	if (!initAudio(44100, AUDIO_U8, 1, 1024)) {
+	if (!initAudio(44100, AUDIO_S8, 1, 1024)) {
 		std::cout << "Audio initialization failed, continuing without sound.\n";
 	}
 
@@ -64,18 +64,13 @@ bool Window::pollEvent(SDL_Event* event) {
 	return SDL_PollEvent(event);
 }
 
-void Window::updateSurface(double emulationSpeed, bool skipRender) {
+double Window::updateSurface(double emulationSpeed, bool skipRender) {
 	if (emulationSpeed <= 0.0) emulationSpeed = 1.0;
 
 	if (!skipRender) {
 		SDL_RenderPresent(renderer);
 		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 		SDL_RenderClear(renderer);
-	}
-
-	// If emulationSpeed is huge, just skip the delay
-	if (emulationSpeed >= 100) {
-		return;
 	}
 
 	static uint64_t lastTime = SDL_GetPerformanceCounter();
@@ -109,6 +104,8 @@ void Window::updateSurface(double emulationSpeed, bool skipRender) {
 	if ((SDL_GetPerformanceCounter() - lastTime) > SDL_GetPerformanceFrequency()) {
 		lastTime = SDL_GetPerformanceCounter();
 	}
+	
+	return elapsedTime;
 }
 
 void Window::closeWindow() {
@@ -217,7 +214,7 @@ bool Window::initAudio(int frequency, uint16_t format, int channels, int samples
 	return true;
 }
 
-void Window::queueAudio(uint8_t* buffer, int size) {
+void Window::queueAudio(int8_t* buffer, int size) {
 	if (audio_device != 0 && buffer) {
 		SDL_QueueAudio(audio_device, buffer, size);
 	}

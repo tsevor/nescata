@@ -35,13 +35,15 @@ public:
 	bool enableWindow = true;
 
 	// time management
+	double lastFrameTime = 0.0;
 	double emulationSpeed = 1.0; // 1.0 = normal speed
 	double prevEmulationSpeed = 1.0;
 	bool paused = false;
 	bool passFrame = false; // used when paused to advance a single frame
 
 	// audio
-	uint8_t scaledAudioBuffer[7350]; // down to 10% speed
+	int8_t scaledAudioBuffer[7350]; // down to 10% speed
+	double bufferCompensation = 0.0;
 	double audioVolume = 0.5;
 
 	// messaging system

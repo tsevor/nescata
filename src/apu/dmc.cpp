@@ -96,6 +96,25 @@ uint8_t DMC::getOutput() {
 	return outputLevel;
 }
 
+void DMC::reset() {
+	enabled = false;
+	irqEnable = false;
+	irqPending = false;
+	loopFlag = false;
+	timerLoad = 0;
+	timer = 0;
+	outputLevel = 0;
+	sampleAddress = 0x0000;
+	sampleLength = 0;
+	currentAddress = 0x0000;
+	bytesRemaining = 0;
+	sampleBufferEmpty = true;
+	sampleBuffer = 0;
+	shiftRegister = 0;
+	bitsRemaining = 8;
+	silenceFlag = true;
+}
+
 void DMC::connectBus(Bus* busRef) {
 	bus = busRef;
 }

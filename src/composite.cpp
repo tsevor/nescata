@@ -28,7 +28,7 @@ void Composite::renderScanline(int scanline) {
 	// render background tiles
 	uint32_t bgLine[256] = {0};
 	if (ppu->MASKshowBackground())
-		renderBackgroundAtLine(scanline, bgLine);
+		renderBackgroundLine(bgLine);
 
 	// composite bg and sprites onto frame buffer
 	for (int x = 0; x < 256; x++) {
@@ -55,7 +55,7 @@ void Composite::renderScanline(int scanline) {
 	}
 }
 
-void Composite::renderBackgroundAtLine(int scanline, uint32_t* lineBuf) {
+void Composite::renderBackgroundLine(uint32_t* lineBuf) {
 	LoopyRegister lineV = ppu->v;
 	uint8_t fineX = ppu->x;
 

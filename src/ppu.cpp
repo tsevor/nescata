@@ -212,10 +212,6 @@ ColorEmphasis PPU::MASKgetEmphasis() {
 
 // PPUSTAT
 
-void PPU::STATwrite(uint8_t value) {
-	// PPUSTAT writes are ignored
-}
-
 uint8_t PPU::STATread() {
 	uint8_t value = stat.raw;
 	stat.V = 0;

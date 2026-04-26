@@ -12,10 +12,7 @@ class Bus;
 
 class APU {
 private:
-	uint8_t bufferA[735];
-	uint8_t bufferB[735];
-	uint8_t* activeBuffer = bufferA;
-	uint8_t* workingBuffer = bufferB;
+	int8_t buffer[735];
 
 	Bus* bus = nullptr;
 
@@ -55,7 +52,7 @@ public:
 	uint8_t read(uint16_t addr);
 	void write(uint16_t addr, uint8_t val);
 
-	uint8_t* swapBuffers();
+	int8_t* getBuffer();
 
 	void connectBus(Bus* busRef);
 };

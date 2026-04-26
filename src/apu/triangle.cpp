@@ -68,3 +68,16 @@ void Triangle::clockLength() {
 uint8_t Triangle::getOutput() {
 	return sequenceTable[sequenceStep];
 }
+
+void Triangle::reset() {
+	enabled = false;
+	timerLoad = 0;
+	timer = 0;
+	sequenceStep = 0;
+	lengthEnable = true;
+	lengthCounter = 0;
+	linearControl = false;
+	linearReload = false;
+	linearLoad = 0;
+	linearCounter = 0;
+}

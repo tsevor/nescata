@@ -121,3 +121,25 @@ uint8_t Pulse::getOutput() {
 	}
 	return 0;
 }
+
+void Pulse::reset() {
+	enabled = false;
+	dutyCycle = 0;
+	timerLoad = 0;
+	timer = 0;
+	sequenceStep = 0;
+	constantVolume = false;
+	envelopeLoop = false;
+	envelopeStart = false;
+	envelopePeriod = 0;
+	envelopeDivider = 0;
+	envelopeDecay = 0;
+	lengthEnable = true;
+	lengthCounter = 0;
+	sweepEnabled = false;
+	sweepReload = false;
+	sweepNegate = false;
+	sweepPeriod = 0;
+	sweepDivider = 0;
+	sweepShift = 0;
+}

@@ -81,3 +81,19 @@ uint8_t Noise::getOutput() {
 
 	return constantVolume ? envelopePeriod : envelopeDecay;
 }
+
+void Noise::reset() {
+	enabled = false;
+	shiftRegister = 1;
+	mode = false;
+	timer = 0;
+	timerLoad = 0;
+	constantVolume = false;
+	envelopeLoop = false;
+	envelopeStart = false;
+	envelopePeriod = 0;
+	envelopeDivider = 0;
+	envelopeDecay = 0;
+	lengthEnable = true;
+	lengthCounter = 0;
+}

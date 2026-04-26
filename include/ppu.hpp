@@ -75,7 +75,6 @@ public:
 
 	// PPUSTAT
 	uint8_t STATread();
-	void STATwrite(uint8_t value);
 	bool STATisInVBlank();
 	bool STATsprite0Hit();
 	bool STATspriteOverflow();

@@ -20,7 +20,7 @@ public:
 
 	void renderScanline(int scanline);
 
-	void renderBackgroundAtLine(int scanline, uint32_t* lineBuf);
+	void renderBackgroundLine(uint32_t* lineBuf);
 	void renderSpritesAtLine(int scanline, uint32_t* lineBuf);
 
 	uint32_t* getBuffer();

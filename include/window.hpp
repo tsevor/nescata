@@ -41,7 +41,7 @@ public:
 
 	int StartWindow();
 	bool pollEvent(SDL_Event* event);
-	void updateSurface(double emulationSpeed = 1.0, bool skipRender = false);
+	double updateSurface(double emulationSpeed = 1.0, bool skipRender = false);
 	void closeWindow();
 
 	void waitForVsync();
@@ -60,8 +60,8 @@ public:
 
 	// Audio functions
 	bool initAudio(int frequency = 44100, uint16_t format = AUDIO_S16SYS, int channels = 1, int samples = 2048);
-	void setAudioQueue(uint8_t* buffer, int size);
-	void queueAudio(uint8_t* buffer, int size);
+	void setAudioQueue(int8_t* buffer, int size);
+	void queueAudio(int8_t* buffer, int size);
 	void pauseAudio(bool pause_on);
 	uint32_t getQueuedAudioSize() const;
 	void clearAudioQueue();

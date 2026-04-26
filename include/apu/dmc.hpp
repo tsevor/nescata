@@ -40,6 +40,8 @@ public:
 	void fetchSample();
 	void restartSample();
 	uint8_t getOutput();
+	
+	void reset();
 
 	void connectBus(Bus* bus);
 };

@@ -58,6 +58,7 @@ public:
 	}
 
 	int mirrorNametable(int ntIdx) override {
+		(void)ntIdx;
 		return mirrorPage;
 	}
 };

@@ -18,6 +18,12 @@ void APU::reset() {
 	if (!dmc.irqPending) {
 		*(bus->irqLine) = false;
 	}
+	
+	pulse1.reset();
+	pulse2.reset();
+	triangle.reset();
+	noise.reset();
+	dmc.reset();
 }
 
 uint8_t APU::read(uint16_t addr) {
@@ -89,6 +95,8 @@ void APU::write(uint16_t addr, uint8_t val) {
 			break;
 	}
 }
+
+#include <iostream>
 
 void APU::step(int cpuCycles) {
 	for (int i = 0; i < cpuCycles; i++) {
@@ -194,7 +202,8 @@ void APU::step(int cpuCycles) {
 					tndOut = 159.79 / (1.0 / ((tr / 8227.0) + (ns / 12241.0) + (dm / 22638.0)) + 100.0);
 				}
 
-				workingBuffer[sampleIndex] = static_cast<uint8_t>((pulseOut + tndOut) * 255.0);
+				buffer[sampleIndex] = static_cast<int8_t>((pulseOut + tndOut) * 255.0 - 128.0);
+				
 				sampleIndex++;
 			}
 
@@ -208,21 +217,18 @@ void APU::step(int cpuCycles) {
 	}
 }
 
-uint8_t* APU::swapBuffers() {
+
+int8_t* APU::getBuffer() {
 	// if the frame ended early pad the rest of the buffer with the last audio state
-	uint8_t lastSample = (sampleIndex > 0) ? workingBuffer[sampleIndex - 1] : 0;
+	int8_t lastSample = (sampleIndex > 0) ? buffer[sampleIndex - 1] : 0;
 	while (sampleIndex < 735) {
-		workingBuffer[sampleIndex] = lastSample;
+		buffer[sampleIndex] = lastSample;
 		sampleIndex++;
 	}
 
-	uint8_t* temp = activeBuffer;
-	activeBuffer = workingBuffer;
-	workingBuffer = temp;
-
 	sampleIndex = 0;
 
-	return activeBuffer;
+	return buffer;
 }
 
 void APU::clockQuarterFrame() {
