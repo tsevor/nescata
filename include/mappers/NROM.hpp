@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "mapper.hpp"
+#include "bus.hpp"
 
 class NROM final : public Mapper {
 private:
@@ -21,7 +22,7 @@ public:
 		if (addr >= 0x8000) {
 			return cart->prgData[addr & prgMask];
 		}
-		return 0;
+		return cart->bus->openBus;
 	}
 
 	void write(uint16_t addr, uint8_t value) override {

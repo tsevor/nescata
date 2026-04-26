@@ -22,6 +22,8 @@ public:
 	Controller* controller2 = nullptr;
 	
 	bool* irqLine = nullptr;
+	uint8_t openBus = 0;
+	uint8_t ppuOpenBus = 0;
 
 	int16_t cheats[0x10000]; // 0-255, -1 means no
 

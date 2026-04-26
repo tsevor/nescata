@@ -20,56 +20,74 @@ void Bus::clearMem() {
 
 uint8_t Bus::read(uint16_t addr) {
 
-	// check if there's a cheat for the address
 	if (cheats[addr] > -1) {
-		return cheats[addr];
+		openBus = cheats[addr];
+		return openBus;
 	}
 
-	// faster to just pull it out of the switch
 	if (addr < 0x2000) {
-		return memory[addr & 0x7FF];
+		openBus = memory[addr & 0x7FF];
+	} else if (addr >= 0x4020) {
+		openBus = cart->mapper->read(addr);
+	} else {
+		switch (addr) {
+			case 0x2000:
+			case 0x2001:
+			case 0x2003:
+			case 0x2005:
+			case 0x2006:
+				// Reading a write-only PPU register returns the PPU latch
+				openBus = ppuOpenBus;
+				break;
+			case 0x2002:
+				ppuOpenBus = (ppu->STATread() & 0xE0) | (ppuOpenBus & 0x1F);
+				openBus = ppuOpenBus;
+				break;
+			case 0x2004:
+				ppuOpenBus = ppu->OAMDATAread();
+				openBus = ppuOpenBus;
+				break;
+			case 0x2007:
+				ppuOpenBus = ppu->read();
+				openBus = ppuOpenBus;
+				break;
+			case 0x2008 ... 0x3FFF: // ppu registers mirror
+				openBus = read(0x2000 | (addr & 0x7));
+				break;
+			case 0x4015:
+				openBus = (apu->read(0x4015) & 0x1F) | (openBus & 0xE0);
+				break;
+			case 0x4016:
+				openBus = (controller1->read() & 0x1F) | (openBus & 0xE0);
+				break;
+			case 0x4017:
+				openBus = (controller2->read() & 0x1F) | (openBus & 0xE0);
+				break;
+			default:
+				// Unmapped or write-only APU register. 
+				// Retains the global CPU openBus.
+				break;
+		}
 	}
-	if (addr >= 0x4020) { // Catch $4020 - $7FFF
-		return cart->mapper->read(addr);
-	}
-
-	switch (addr) {
-		case 0x2002:
-			return ppu->STATread();
-		case 0x2004:
-			return ppu->OAMDATAread();
-		case 0x2007:
-			return ppu->read();
-		case 0x2008 ... 0x3FFF: // ppu registers mirror
-			return read(0x2000 | (addr & 0x7));
-		case 0x4000 ... 0x4014: // APU and I/O registers
-			// Placeholder for APU and I/O register read
-			return 0;
-		case 0x4015:
-			return apu->read(0x4015);
-		case 0x4016:
-			return controller1->read();
-		case 0x4017:
-			// Reading 0x4017 fetches Player 2 input
-			return controller2->read();
-		case 0x4018 ... 0x401F: // APU and I/O functionality that is normally disabled
-			// Placeholder for disabled APU and I/O read
-			return 0;
-		default:
-			return 0;
-	}
+	
+	return openBus;
 }
 
 void Bus::write(uint16_t addr, uint8_t val) {
+
+	openBus = val;
 
 	// faster to just pull it out of the switch
 	if (addr < 0x2000) {
 		memory[addr & 0x7FF] = val;
 		return;
-	}
-	if (addr >= 0x4020) {
+	} else if (addr >= 0x4020) {
 		cart->mapper->write(addr, val);
-		return; // Explicitly return to prevent switch fallthrough
+		return;
+	}
+
+	if (addr >= 0x2000 && addr <= 0x3FFF) {
+		ppuOpenBus = val;
 	}
 
 	switch (addr) {
