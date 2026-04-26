@@ -34,10 +34,10 @@ void Composite::renderScanline(int scanline) {
 	for (int x = 0; x < 256; x++) {
 		uint32_t spr = spriteLine[x];
 		uint32_t bg = bgLine[x];
-		
+
 		bool hasSpr = (spr & 0xFF000000) != 0;
 		bool hasBg = (bg & 0xFF000000) != 0;
-		
+
 		// Priority bit was encoded into the alpha channel during the sprite pass
 		bool backPriority = (spr & 0xFF000000) == 0xFE000000;
 
@@ -137,7 +137,7 @@ void Composite::renderSpritesAtLine(int scanline, uint32_t* lineBuf) {
 		for (int x = 0; x < 8; x++) {
 			int screenX = spriteX + x;
 			if (screenX < 0 || screenX >= 256) continue; // pixel out of bounds
-			
+
 			// Hardware accuracy: Clip left 8 pixels if requested by PPUMASK
 			if (screenX < 8 && !ppu->MASKshowSpritesLeft()) continue;
 

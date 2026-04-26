@@ -32,7 +32,7 @@ private:
 	void updateBanks() {
 		// Control Bits 2-3: PRG ROM Bank Mode
 		int mode = (control >> 2) & 0x03;
-		int pIdx = prgBank & 0x0F; 
+		int pIdx = prgBank & 0x0F;
 		prgRamEnabled = (prgBank & 0x10) == 0;
 
 		if (mode <= 1) {

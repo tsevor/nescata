@@ -155,6 +155,7 @@ private:
 
 public:
 
+	bool nmiPending = false;
 	bool irqPending = false;
 
 	bool jammed = false;

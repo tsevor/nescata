@@ -64,12 +64,12 @@ uint8_t Bus::read(uint16_t addr) {
 				openBus = (controller2->read() & 0x1F) | (openBus & 0xE0);
 				break;
 			default:
-				// Unmapped or write-only APU register. 
+				// Unmapped or write-only APU register.
 				// Retains the global CPU openBus.
 				break;
 		}
 	}
-	
+
 	return openBus;
 }
 

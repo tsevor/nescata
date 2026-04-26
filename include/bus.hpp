@@ -20,7 +20,7 @@ public:
 	Cart* cart = nullptr;
 	Controller* controller1 = nullptr;
 	Controller* controller2 = nullptr;
-	
+
 	bool* irqLine = nullptr;
 	uint8_t openBus = 0;
 	uint8_t ppuOpenBus = 0;

@@ -223,44 +223,36 @@ void CPU::_branch(bool condition) {
 }
 
 void CPU::_interrupt(CPU::InterruptVector vec) {
-	if (vec != CPU::VECTOR_BRK) {
-		// cycles += 7;
-	}
+    if (vec == CPU::VECTOR_RESET) {
+        p.I = 1;
+        pc = readMem16(RESET_VECTOR);
+        return;
+    }
 
-	if (vec == CPU::VECTOR_RESET) {
-		p.I = 1; // Disable IRQs
-		pc = readMem16(RESET_VECTOR);
-		return;
-	}
+    push16(pc);
 
-	if (vec == CPU::VECTOR_IRQ && p.I) {
-		return;
-	}
+    uint8_t flags_to_push = p.raw | 0x20; // Unused flag is always 1
+    if (vec == CPU::VECTOR_BRK) {
+        flags_to_push |= 0x10; // Set B flag for BRK
+    } else {
+        flags_to_push &= ~0x10; // Clear B flag for IRQ/NMI
+    }
 
-	push16(pc);
+    push(flags_to_push);
+    p.I = 1;
 
-	uint8_t flags_to_push = p.raw;
+    // CYCLE 5: Vector Hijacking
+    uint16_t vectorAddr = IRQ_VECTOR;
+    if (vec == CPU::VECTOR_NMI) {
+        vectorAddr = NMI_VECTOR;
+    } else if (nmiPending) {
+        // NMI hijacked the BRK or IRQ sequence!
+        vectorAddr = NMI_VECTOR;
+        nmiPending = false;
+    }
 
-	if (vec == CPU::VECTOR_BRK) {
-		flags_to_push |= (1 << 4);
-	} else {
-		flags_to_push &= ~(1 << 4);
-	}
-
-	flags_to_push |= (1 << 5);
-
-	push(flags_to_push);
-
-	p.I = 1;
-
-	uint16_t vectorAddr;
-	if (vec == CPU::VECTOR_NMI) {
-		vectorAddr = NMI_VECTOR;
-	} else {
-		vectorAddr = IRQ_VECTOR;
-	}
-
-	pc = readMem16(vectorAddr);
+    // Cycles 6 and 7: Read vector
+    pc = readMem16(vectorAddr);
 }
 
 // CPU INSTRUCTIONS
@@ -735,9 +727,11 @@ void CPU::op_SBX(AddressingMode mode) {
 
 void CPU::op_SHA(AddressingMode mode) {
 	uint16_t addr = getOperandAddress(mode, WRITE);
-	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
+	uint16_t base = addr - y; // SHA uses INY and ABY, so the index is always Y
+	uint8_t baseHighByte = base >> 8;
 	uint8_t val = a & x & (baseHighByte + 1);
-	if (pageCrossed) {
+
+	if ((base & 0xFF00) != (addr & 0xFF00)) {
 		addr = (addr & 0x00FF) | (val << 8);
 	}
 	writeMem(addr, val);
@@ -745,9 +739,11 @@ void CPU::op_SHA(AddressingMode mode) {
 
 void CPU::op_SHX(AddressingMode mode) {
 	uint16_t addr = getOperandAddress(mode, WRITE);
-	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
+	uint16_t base = addr - y; // SHX uses ABY
+	uint8_t baseHighByte = base >> 8;
 	uint8_t val = x & (baseHighByte + 1);
-	if (pageCrossed) {
+
+	if ((base & 0xFF00) != (addr & 0xFF00)) {
 		addr = (addr & 0x00FF) | (val << 8);
 	}
 	writeMem(addr, val);
@@ -755,9 +751,11 @@ void CPU::op_SHX(AddressingMode mode) {
 
 void CPU::op_SHY(AddressingMode mode) {
 	uint16_t addr = getOperandAddress(mode, WRITE);
-	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
+	uint16_t base = addr - x; // SHY uses ABX
+	uint8_t baseHighByte = base >> 8;
 	uint8_t val = y & (baseHighByte + 1);
-	if (pageCrossed) {
+
+	if ((base & 0xFF00) != (addr & 0xFF00)) {
 		addr = (addr & 0x00FF) | (val << 8);
 	}
 	writeMem(addr, val);
@@ -790,9 +788,11 @@ void CPU::op_SRE(AddressingMode mode) {
 void CPU::op_TAS(AddressingMode mode) {
 	uint16_t addr = getOperandAddress(mode, WRITE);
 	s = a & x;
-	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
+	uint16_t base = addr - y; // TAS/SHS uses ABY
+	uint8_t baseHighByte = base >> 8;
 	uint8_t val = s & (baseHighByte + 1);
-	if (pageCrossed) {
+
+	if ((base & 0xFF00) != (addr & 0xFF00)) {
 		addr = (addr & 0x00FF) | (val << 8);
 	}
 	writeMem(addr, val);
@@ -854,13 +854,22 @@ bool CPU::clock() {
 
 	long int prev_cycles = cycles;
 
-	// Respect the 1-instruction delay
-	if (irqPending && p.I == 0 && !interruptDelay) {
-		_interrupt(VECTOR_IRQ);
-		int diff_cycles = cycles - prev_cycles;
-		if (bus) bus->clock(diff_cycles * 12);
-		return false;
-	}
+	// Check NMI first (edge triggered, non-maskable)
+    if (nmiPending) {
+        nmiPending = false;
+        readMem(pc); // Dummy read 1
+        readMem(pc); // Dummy read 2
+        _interrupt(VECTOR_NMI);
+        return bus->clock((cycles - prev_cycles) * 12);
+    }
+
+    // Check IRQ (level triggered, maskable)
+    if (irqPending && p.I == 0 && !interruptDelay) {
+        readMem(pc); // Dummy read 1
+        readMem(pc); // Dummy read 2
+        _interrupt(VECTOR_IRQ);
+        return bus->clock((cycles - prev_cycles) * 12);
+    }
 
 	interruptDelay = false; // Reset the delay so the subsequent instruction can be hijacked
 

@@ -97,6 +97,7 @@ void Core::reset() {
 	if (cart)
 		if (cart->mapper)
 			cart->mapper->reset();
+	apu.reset();
 }
 
 void Core::powerOn() {

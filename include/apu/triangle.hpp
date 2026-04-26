@@ -23,10 +23,10 @@ public:
 	static const uint8_t sequenceTable[32];
 
 	void write(uint16_t addr, uint8_t val);
-	
+
 	void clockTimer();
 	void clockLinear();
 	void clockLength();
-	
+
 	uint8_t getOutput();
 };

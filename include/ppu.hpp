@@ -31,7 +31,7 @@ private:
 	OAM oam;              // Object Attribute Memory (OAM)
 	uint8_t palette[32];  // Palette Memory
 	uint8_t buffer;       // Internal read buffer for PPUDATA reads
-	
+
 	uint32_t decodedPalette[32]; // Caching
 
 
@@ -41,12 +41,12 @@ private:
 
 public:
 	PPU();
-	
+
 	int cycle;          // Current PPU cycle
 	int frame;          // Current frame count
 	int scanline;       // Current PPU scanline
 	int dot;            // Current PPU dot (pixel) within the scanline
-	
+
 	bool skipFrame = false;
 
 	void reset();

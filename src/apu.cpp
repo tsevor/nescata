@@ -78,18 +78,14 @@ void APU::write(uint16_t addr, uint8_t val) {
 		case 0x4017:
 			frameMode = (val >> 7) & 0x01;
 			irqInhibit = (val >> 6) & 0x01;
-			
+
 			frameIrq = false;
 			if (!dmc.irqPending) {
 				*(bus->irqLine) = false;
 			}
-			
+
 			frameCounterResetDelay = (totalCycles % 2 == 0) ? 3 : 4;
 
-			if (frameMode == 1) {
-				clockQuarterFrame();
-				clockHalfFrame();
-			}
 			break;
 	}
 }
@@ -97,10 +93,16 @@ void APU::write(uint16_t addr, uint8_t val) {
 void APU::step(int cpuCycles) {
 	for (int i = 0; i < cpuCycles; i++) {
 		// Handle the $4017 reset delay
+		// In APU::step
 		if (frameCounterResetDelay > 0) {
 			frameCounterResetDelay--;
 			if (frameCounterResetDelay == 0) {
 				frameCounter = 0;
+				// Apply the delayed Mode 1 clocks here!
+				if (frameMode == 1) {
+					clockQuarterFrame();
+					clockHalfFrame();
+				}
 			}
 		}
 

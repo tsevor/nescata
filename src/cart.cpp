@@ -10,7 +10,7 @@ Cart::Cart() {
 
 Cart::~Cart() {
 	if (blank) return;
-	
+
 	if (mapper) delete mapper;
 	if (prgData) delete[] prgData;
 	if (chrData) delete[] chrData;

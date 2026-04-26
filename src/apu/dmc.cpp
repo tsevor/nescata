@@ -38,12 +38,12 @@ void DMC::restartSample() {
 
 void DMC::fetchSample() {
 	if (!bus) return;
-	
+
 	sampleBuffer = bus->read(currentAddress);
 	sampleBufferEmpty = false;
 
 	// would stall cpu 4 cycles
-	
+
 	currentAddress++;
 	if (currentAddress == 0x0000) {
 		currentAddress = 0x8000;

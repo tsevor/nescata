@@ -27,10 +27,10 @@ public:
 	static const uint16_t periodTable[16];
 
 	void write(uint16_t addr, uint8_t val);
-	
+
 	void clockTimer();
 	void clockEnvelope();
 	void clockLength();
-	
+
 	uint8_t getOutput();
 };

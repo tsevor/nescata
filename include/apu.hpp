@@ -8,7 +8,7 @@
 #include "apu/dmc.hpp"
 
 // Forward declaration
-class Bus; 
+class Bus;
 
 class APU {
 private:
@@ -18,7 +18,7 @@ private:
 	uint8_t* workingBuffer = bufferB;
 
 	Bus* bus = nullptr;
-	
+
 	Pulse pulse1 {true};
 	Pulse pulse2 {false};
 	Triangle triangle;
@@ -27,7 +27,7 @@ private:
 
 	uint64_t totalCycles = 0;
 	uint64_t frameCounter = 0;
-	
+
 	uint8_t frameMode = 0;
 	bool irqInhibit = false;
 	bool frameIrq = false;
@@ -41,7 +41,7 @@ private:
 	int trSum = 0;
 	int nsSum = 0;
 	int dmcSum = 0;
-	
+
 	int frameCounterResetDelay = 0;
 
 public:
@@ -56,6 +56,6 @@ public:
 	void write(uint16_t addr, uint8_t val);
 
 	uint8_t* swapBuffers();
-	
+
 	void connectBus(Bus* busRef);
 };

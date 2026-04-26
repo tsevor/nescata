@@ -32,18 +32,18 @@ public:
 
 	static const uint8_t dutyTable[4][8];
 	static const uint8_t lengthTable[32];
-	
+
 	Pulse(bool isPulse1) : isPulse1(isPulse1) {}
 
 	void write(uint16_t addr, uint8_t val);
 	int32_t calculateSweepTarget();
-	
+
 	void clockTimer();
 	void clockEnvelope();
 	void clockLength();
 	void clockSweep();
-	
+
 	uint8_t getOutput();
-	
+
 
 };

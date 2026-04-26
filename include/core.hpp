@@ -39,7 +39,7 @@ public:
 	double prevEmulationSpeed = 1.0;
 	bool paused = false;
 	bool passFrame = false; // used when paused to advance a single frame
-	
+
 	// audio
 	uint8_t scaledAudioBuffer[7350]; // down to 10% speed
 	double audioVolume = 0.5;

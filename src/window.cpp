@@ -52,7 +52,7 @@ int Window::StartWindow() {
 		std::cout << "Failed to create texture: " << SDL_GetError() << "\n";
 		return -1;
 	}
-	
+
 	if (!initAudio(44100, AUDIO_U8, 1, 1024)) {
 		std::cout << "Audio initialization failed, continuing without sound.\n";
 	}
@@ -66,44 +66,44 @@ bool Window::pollEvent(SDL_Event* event) {
 
 void Window::updateSurface(double emulationSpeed, bool skipRender) {
 	if (emulationSpeed <= 0.0) emulationSpeed = 1.0;
-	
+
 	if (!skipRender) {
 		SDL_RenderPresent(renderer);
 		SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 		SDL_RenderClear(renderer);
 	}
-	
+
 	// If emulationSpeed is huge, just skip the delay
 	if (emulationSpeed >= 100) {
 		return;
 	}
-	
+
 	static uint64_t lastTime = SDL_GetPerformanceCounter();
 	uint64_t currentTime;
 	double targetFrameTime = (1.0 / 60.0) / emulationSpeed; // Target time in SECONDS
 	double elapsedTime;
-	
+
 	// Spin-lock loop for microsecond accuracy
 	while (true) {
 		currentTime = SDL_GetPerformanceCounter();
 		elapsedTime = (double)(currentTime - lastTime) / SDL_GetPerformanceFrequency();
-		
+
 		if (elapsedTime >= targetFrameTime) {
-			break; 
+			break;
 		}
-		
+
 		// If we have more than 2 milliseconds to wait, yield to the OS to save CPU.
 		// Otherwise, burn CPU cycles in the while loop to hit the exact microsecond.
 		if (targetFrameTime - elapsedTime > 0.002) {
 			SDL_Delay(1);
 		}
 	}
-	
+
 	// Do NOT set lastTime = SDL_GetPerformanceCounter().
 	// Add the target time to the last time to ensure absolute sync over time,
 	// absorbing any micro-stutters.
 	lastTime += (uint64_t)(targetFrameTime * SDL_GetPerformanceFrequency());
-	
+
 	// If the emulator falls severely behind (e.g. window was dragged), reset the clock
 	// so it doesn't run at 1000 FPS trying to catch up.
 	if ((SDL_GetPerformanceCounter() - lastTime) > SDL_GetPerformanceFrequency()) {
@@ -305,7 +305,7 @@ void Window::drawChar(int x, int y, char c, uint32_t textColor, uint32_t bgColor
 		);
 		SDL_RenderFillRect(renderer, &dst);
 	}
-	
+
 	SDL_SetTextureColorMod(cachedFont, (textColor >> 16) & 0xFF, (textColor >> 8) & 0xFF, textColor & 0xFF);
 	SDL_SetTextureAlphaMod(cachedFont, (textColor >> 24) & 0xFF);
 

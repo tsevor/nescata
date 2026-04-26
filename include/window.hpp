@@ -26,12 +26,12 @@ private:
 	SDL_AudioDeviceID audio_device = 0;
 	SDL_AudioSpec audio_spec;
 	std::queue<std::vector<uint8_t>> audio_queue;
-	
+
 	SDL_Texture* cachedFont = nullptr;
 
 	// Helper to extract RGBA from uint32 (ARGB8888)
 	void setRenderColor(uint32_t color);
-	
+
 	void cacheFont();
 
 public:

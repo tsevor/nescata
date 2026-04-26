@@ -40,10 +40,10 @@ void Noise::clockTimer() {
 		timer--;
 	} else {
 		timer = timerLoad;
-		
+
 		uint8_t shift = mode ? 6 : 1;
 		uint16_t feedback = (shiftRegister & 0x01) ^ ((shiftRegister >> shift) & 0x01);
-		
+
 		shiftRegister = (shiftRegister >> 1) | (feedback << 14);
 	}
 }
@@ -76,7 +76,7 @@ void Noise::clockLength() {
 uint8_t Noise::getOutput() {
 	if (!enabled) return 0;
 	if (lengthCounter == 0) return 0;
-	
+
 	if (shiftRegister & 0x01) return 0;
 
 	return constantVolume ? envelopePeriod : envelopeDecay;
