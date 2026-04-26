@@ -23,7 +23,6 @@ void Core::run() {
 
 	if (cart) {
 		cpu.powerOn();
-		cpu.reset();
 	}
 
 	int frameSkipCounter = 0;
@@ -106,7 +105,6 @@ void Core::powerOn() {
 
 void Core::fullReset() {
 	cpu.powerOn();
-	cpu.reset();
 }
 
 void Core::handleWindowEvents() {

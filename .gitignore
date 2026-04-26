@@ -1,2 +1,4 @@
 roms/
 build/
+
+*.log

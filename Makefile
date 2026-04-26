@@ -1,4 +1,4 @@
-.PHONY: all clean windows linux run
+.PHONY: all clean windows linux test run
 
 all: windows linux
 
@@ -13,14 +13,18 @@ linux: clean
 	mkdir -p build
 	g++ -std=c++17 -O3 -flto -Werror -Wall -Iinclude -o build/nescata `find src -name "*.cpp"` `pkg-config --cflags --libs sdl2`
 
+test: clean
+	mkdir -p build
+	g++ -std=c++17 -O0 -Werror -Wall -Iinclude -o build/nescata `find src -name "*.cpp"` `pkg-config --cflags --libs sdl2`
+	./build/nescata "$(ARGS)"
+
 run: clean linux
 	./build/nescata "$(ARGS)"
 
 debug:
 	mkdir -p build
 	g++ -std=c++17 -g -O3 -flto -Werror -Wall -Iinclude -o build/nescata `find src -name "*.cpp"` `pkg-config --cflags --libs sdl2`
-	gdb build/nescata
-
+	gdb build/nescata --args "$(ARGS)"
 
 clean:
 	rm -rf build

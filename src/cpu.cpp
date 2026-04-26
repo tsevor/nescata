@@ -1,5 +1,4 @@
 #include "cpu.hpp"
-#include "bus.hpp"
 
 // CPU IMPLEMENTATION
 
@@ -8,31 +7,33 @@
 CPU::CPU() {}
 
 uint8_t CPU::readMem(uint16_t addr) {
-	if (bus) {
-		return bus->read(addr);
-	}
-	return 0;
+	cycles++;
+	return bus->read(addr);
 }
 
 void CPU::writeMem(uint16_t addr, uint8_t val) {
-	if (bus) {
-		bus->write(addr, val);
-	}
+	cycles++;
+	bus->write(addr, val);
 }
 
 uint16_t CPU::readMem16(uint16_t addr) {
-	return readMem(addr) | (readMem(addr + 1) << 8);
+	uint8_t low = readMem(addr);
+	uint8_t high = readMem(addr + 1);
+	return low | (high << 8);
+}
+
+uint16_t CPU::readMem16Wrap(uint16_t addr) {
+	if ((addr & 0x00ff) == 0x00ff) {
+		uint8_t low = readMem(addr);
+		uint8_t high = readMem(addr & 0xff00);
+		return low | (high << 8);
+	}
+	return readMem16(addr);
 }
 
 void CPU::writeMem16(uint16_t addr, uint16_t val) {
 	writeMem(addr, val & 0xff);
 	writeMem(addr + 1, (val >> 8) & 0xff);
-}
-
-uint16_t CPU::readMem16Wrap(uint16_t addr) {
-	if ((addr & 0x00ff) == 0x00ff)
-		return readMem(addr) | (readMem(addr & 0xff00) << 8);
-	return readMem16(addr);
 }
 
 uint8_t CPU::pull() {
@@ -80,21 +81,24 @@ void CPU::disconnectBus() {
 	bus = nullptr;
 }
 
-uint16_t CPU::getOperandAddress(AddressingMode mode) {
+uint16_t CPU::getOperandAddress(AddressingMode mode, AccessType type) {
 	uint16_t addr;
 
 	switch (mode) {
-		case IMP:
-		case ACC:
-			return 0; // No operand
 		case IMM:
 			return pc++;
 		case ZPG:
 			return readMem(pc++);
-		case ZPX:
-			return (readMem(pc++) + x) & 0xff;
-		case ZPY:
-			return (readMem(pc++) + y) & 0xff;
+		case ZPX: {
+			uint8_t base = readMem(pc++);
+			readMem(base); // Dummy read before adding
+			return (base + x) & 0xff;
+		}
+		case ZPY: {
+			uint8_t base = readMem(pc++);
+			readMem(base); // Dummy read before adding
+			return (base + y) & 0xff;
+		}
 		case REL: {
 			int8_t offset = readMem(pc++);
 			return pc + offset;
@@ -104,38 +108,49 @@ uint16_t CPU::getOperandAddress(AddressingMode mode) {
 			pc += 2;
 			return addr;
 		case ABX: {
-			uint16_t base = readMem16(pc);
+			uint8_t low = readMem(pc++);
+			uint8_t high = readMem(pc++);
+			uint16_t base = (high << 8) | low;
 			addr = base + x;
-			pc += 2;
-			pageCrossed = ((base & 0xFF00) != (addr & 0xFF00));
+			// Write/RMW instructions ALWAYS dummy read. Reads only dummy read on page cross.
+			if (type != READ || (base & 0xFF00) != (addr & 0xFF00)) {
+				readMem((base & 0xFF00) | (addr & 0x00FF));
+			}
 			return addr;
 		}
 		case ABY: {
-			uint16_t base = readMem16(pc);
+			uint8_t low = readMem(pc++);
+			uint8_t high = readMem(pc++);
+			uint16_t base = (high << 8) | low;
 			addr = base + y;
-			pc += 2;
-			pageCrossed = ((base & 0xFF00) != (addr & 0xFF00));
+			if (type != READ || (base & 0xFF00) != (addr & 0xFF00)) {
+				readMem((base & 0xFF00) | (addr & 0x00FF));
+			}
 			return addr;
 		}
 		case IND:
-			// indirect JMP bug is emulated here
 			addr = readMem16(pc);
 			pc += 2;
 			return readMem16Wrap(addr);
 		case INX: {
-			uint8_t zeroPageAddr = readMem(pc++);
-			uint8_t effectiveAddr = (zeroPageAddr + x) & 0xFF;
-			return readMem16Wrap(effectiveAddr);
+			uint8_t base = readMem(pc++);
+			readMem(base); // Dummy read before adding X
+			uint8_t ptr = (base + x) & 0xFF;
+			return readMem16Wrap(ptr);
 		}
 		case INY: {
-			uint16_t base = readMem(pc++);
-			uint16_t baseAddr = readMem16Wrap(base);
+			uint8_t base = readMem(pc++);
+			uint8_t low = readMem(base);
+			uint8_t high = readMem((base + 1) & 0xFF);
+			uint16_t baseAddr = (high << 8) | low;
 			addr = baseAddr + y;
-			pageCrossed = ((baseAddr & 0xFF00) != (addr & 0xFF00));
+			if (type != READ || (baseAddr & 0xFF00) != (addr & 0xFF00)) {
+				readMem((baseAddr & 0xFF00) | (addr & 0x00FF));
+			}
 			return addr;
 		}
 		default:
-			return 0; // Should not happen
+			return 0; // Should never hit for valid addressing modes
 	}
 }
 
@@ -195,11 +210,12 @@ void CPU::_branch(bool condition) {
 	int8_t offset = readMem(pc++);
 
 	if (condition) {
-		cycles++;
-		const uint16_t target_addr = pc + offset;
+		readMem(pc); // Dummy read of next opcode (branch taken)
 
+		uint16_t target_addr = pc + offset;
 		if ((pc & 0xFF00) != (target_addr & 0xFF00)) {
-			cycles++;
+			// Dummy read of the uncorrected target address
+			readMem((pc & 0xFF00) | (target_addr & 0x00FF));
 		}
 
 		pc = target_addr;
@@ -208,7 +224,7 @@ void CPU::_branch(bool condition) {
 
 void CPU::_interrupt(CPU::InterruptVector vec) {
 	if (vec != CPU::VECTOR_BRK) {
-		cycles += 7;
+		// cycles += 7;
 	}
 
 	if (vec == CPU::VECTOR_RESET) {
@@ -250,30 +266,24 @@ void CPU::_interrupt(CPU::InterruptVector vec) {
 // CPU INSTRUCTIONS
 
 void CPU::op_ADC(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	_addToAccumulator(readMem(addr));
-	if (mode == ABX || mode == ABY || mode == INY) {
-		if (pageCrossed) cycles++;
-	}
+	_addToAccumulator(readMem(getOperandAddress(mode, READ)));
 }
 
 void CPU::op_AND(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	a &= readMem(addr);
+	a &= readMem(getOperandAddress(mode, READ));
 	_setZNFlags(a);
-	if (mode == ABX || mode == ABY || mode == INY) {
-		if (pageCrossed) cycles++;
-	}
 }
 
 void CPU::op_ASL(AddressingMode mode) {
 	if (mode == ACC) {
+		readMem(pc); // Dummy read
 		p.C = (a & 0x80) != 0;
 		a <<= 1;
 		_setZNFlags(a);
 	} else {
-		uint16_t addr = getOperandAddress(mode);
+		uint16_t addr = getOperandAddress(mode, RMW);
 		uint8_t val = readMem(addr);
+		writeMem(addr, val); // Dummy write before modify
 		p.C = (val & 0x80) != 0;
 		val <<= 1;
 		writeMem(addr, val);
@@ -294,8 +304,7 @@ void CPU::op_BEQ(AddressingMode mode) {
 }
 
 void CPU::op_BIT(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr);
+	uint8_t val = readMem(getOperandAddress(mode, READ));
 	p.Z = (a & val) == 0;
 	p.N = (val & 0x80) != 0;
 	p.V = (val & 0x40) != 0;
@@ -314,6 +323,7 @@ void CPU::op_BPL(AddressingMode mode) {
 }
 
 void CPU::op_BRK(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	pc++;
 	_interrupt(VECTOR_BRK);
 }
@@ -327,128 +337,122 @@ void CPU::op_BVC(AddressingMode mode) {
 }
 
 void CPU::op_CLC(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	p.C = 0;
 }
 
 void CPU::op_CLD(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	p.D = 0;
 }
 
 void CPU::op_CLI(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	p.I = 0;
 	interruptDelay = true;
 }
 
 void CPU::op_CLV(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	p.V = 0;
 }
 
 void CPU::op_CMP(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	_compare(a, readMem(addr));
-	if (mode == ABX || mode == ABY || mode == INY) {
-		if (pageCrossed) cycles++;
-	}
+	_compare(a, readMem(getOperandAddress(mode, READ)));
 }
 
 void CPU::op_CPX(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	_compare(x, readMem(addr));
+	_compare(x, readMem(getOperandAddress(mode, READ)));
 }
 
 void CPU::op_CPY(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	_compare(y, readMem(addr));
+	_compare(y, readMem(getOperandAddress(mode, READ)));
 }
 
 void CPU::op_DEC(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr) - 1;
+	uint16_t addr = getOperandAddress(mode, RMW);
+	uint8_t val = readMem(addr);
+	writeMem(addr, val); // Dummy write before modify
+	val--;
 	writeMem(addr, val);
 	_setZNFlags(val);
 }
 
 void CPU::op_DEX(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	x--;
 	_setZNFlags(x);
 }
 
 void CPU::op_DEY(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	y--;
 	_setZNFlags(y);
 }
 
 void CPU::op_EOR(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	a ^= readMem(addr);
+	a ^= readMem(getOperandAddress(mode, READ));
 	_setZNFlags(a);
-	if (mode == ABX || mode == ABY || mode == INY) {
-		if (pageCrossed) cycles++;
-	}
 }
 
 void CPU::op_INC(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr) + 1;
+	uint16_t addr = getOperandAddress(mode, RMW);
+	uint8_t val = readMem(addr);
+	writeMem(addr, val); // Dummy write before modify
+	val++;
 	writeMem(addr, val);
 	_setZNFlags(val);
 }
 
 void CPU::op_INX(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	x++;
 	_setZNFlags(x);
 }
 
 void CPU::op_INY(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	y++;
 	_setZNFlags(y);
 }
 
 void CPU::op_JMP(AddressingMode mode) {
-	pc = getOperandAddress(mode);
+	pc = getOperandAddress(mode, READ);
 }
 
 void CPU::op_JSR(AddressingMode mode) {
-	uint16_t addr = readMem16(pc);
-	push16(pc + 1);
-	pc = addr;
+	uint8_t low = readMem(pc++);
+	readMem(STACK_BASE + s); // Dummy stack read
+	push16(pc);
+	uint8_t high = readMem(pc++);
+	pc = (high << 8) | low;
 }
 
 void CPU::op_LDA(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	a = readMem(addr);
+	a = readMem(getOperandAddress(mode, READ));
 	_setZNFlags(a);
-	if (mode == ABX || mode == ABY || mode == INY) {
-		if (pageCrossed) cycles++;
-	}
 }
 
 void CPU::op_LDX(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	x = readMem(addr);
+	x = readMem(getOperandAddress(mode, READ));
 	_setZNFlags(x);
-	if (mode == ABY || mode == INY) { // LDX uses Absolute,Y
-		if (pageCrossed) cycles++;
-	}
 }
 
 void CPU::op_LDY(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	y = readMem(addr);
+	y = readMem(getOperandAddress(mode, READ));
 	_setZNFlags(y);
-	if (mode == ABX) { // LDY uses Absolute,X
-		if (pageCrossed) cycles++;
-	}
 }
 
 void CPU::op_LSR(AddressingMode mode) {
 	if (mode == ACC) {
+		readMem(pc); // Dummy read
 		p.C = a & 1;
 		a >>= 1;
 		_setZNFlags(a);
 	} else {
-		uint16_t addr = getOperandAddress(mode);
+		uint16_t addr = getOperandAddress(mode, RMW);
 		uint8_t val = readMem(addr);
+		writeMem(addr, val); // Dummy write before modify
 		p.C = val & 1;
 		val >>= 1;
 		writeMem(addr, val);
@@ -457,40 +461,38 @@ void CPU::op_LSR(AddressingMode mode) {
 }
 
 void CPU::op_NOP(AddressingMode mode) {
-	if (mode != IMP && mode != ACC) {
-		getOperandAddress(mode);
-
-		if (mode == ABX) {
-			if (pageCrossed) {
-				cycles++;
-			}
-		}
-	}
+    if (mode == IMP) {
+        readMem(pc); // Dummy read next byte
+    } else {
+        readMem(getOperandAddress(mode, READ)); // Calculate address AND read target
+    }
 }
 
 void CPU::op_ORA(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	a |= readMem(addr);
+	a |= readMem(getOperandAddress(mode, READ));
 	_setZNFlags(a);
-	if (mode == ABX || mode == ABY || mode == INY) {
-		if (pageCrossed) cycles++;
-	}
 }
 
 void CPU::op_PHA(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	push(a);
 }
 
 void CPU::op_PHP(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	push(_getStatus(true));
 }
 
 void CPU::op_PLA(AddressingMode mode) {
+	readMem(pc); // Dummy read
+	readMem(STACK_BASE + s); // Dummy stack read
 	a = pull();
 	_setZNFlags(a);
 }
 
 void CPU::op_PLP(AddressingMode mode) {
+	readMem(pc); // Dummy read
+	readMem(STACK_BASE + s); // Dummy stack read
 	_setStatus(pull());
 	p.U = 1;
 }
@@ -498,12 +500,14 @@ void CPU::op_PLP(AddressingMode mode) {
 void CPU::op_ROL(AddressingMode mode) {
 	uint8_t carry = p.C;
 	if (mode == ACC) {
+		readMem(pc); // Dummy read
 		p.C = (a & 0x80) != 0;
 		a = (a << 1) | carry;
 		_setZNFlags(a);
 	} else {
-		uint16_t addr = getOperandAddress(mode);
+		uint16_t addr = getOperandAddress(mode, RMW);
 		uint8_t val = readMem(addr);
+		writeMem(addr, val); // Dummy write before modify
 		p.C = (val & 0x80) != 0;
 		val = (val << 1) | carry;
 		writeMem(addr, val);
@@ -514,12 +518,14 @@ void CPU::op_ROL(AddressingMode mode) {
 void CPU::op_ROR(AddressingMode mode) {
 	uint8_t carry = p.C;
 	if (mode == ACC) {
+		readMem(pc); // Dummy read
 		p.C = a & 1;
 		a = (a >> 1) | (carry << 7);
 		_setZNFlags(a);
 	} else {
-		uint16_t addr = getOperandAddress(mode);
+		uint16_t addr = getOperandAddress(mode, RMW);
 		uint8_t val = readMem(addr);
+		writeMem(addr, val); // Dummy write before modify
 		p.C = val & 1;
 		val = (val >> 1) | (carry << 7);
 		writeMem(addr, val);
@@ -528,71 +534,82 @@ void CPU::op_ROR(AddressingMode mode) {
 }
 
 void CPU::op_RTI(AddressingMode mode) {
+	readMem(pc); // Dummy read
+	readMem(STACK_BASE + s); // Dummy stack read
 	_setStatus(pull());
 	pc = pull16();
 }
 
 void CPU::op_RTS(AddressingMode mode) {
-	pc = pull16() + 1;
+	readMem(pc); // Dummy read
+	readMem(STACK_BASE + s); // Dummy stack read
+	pc = pull16();
+	readMem(pc); // Dummy read of pulled PC
+	pc++;
 }
 
 void CPU::op_SBC(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	_addToAccumulator(readMem(addr) ^ 0xFF);
-	if (mode == ABX || mode == ABY || mode == INY) {
-		if (pageCrossed) cycles++;
-	}
+	_addToAccumulator(readMem(getOperandAddress(mode, READ)) ^ 0xFF);
 }
 
 void CPU::op_SEC(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	p.C = 1;
 }
 
 void CPU::op_SED(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	p.D = 1;
 }
 
 void CPU::op_SEI(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	p.I = 1;
 }
 
 void CPU::op_STA(AddressingMode mode) {
-	writeMem(getOperandAddress(mode), a);
+	writeMem(getOperandAddress(mode, WRITE), a);
 }
 
 void CPU::op_STX(AddressingMode mode) {
-	writeMem(getOperandAddress(mode), x);
+	writeMem(getOperandAddress(mode, WRITE), x);
 }
 
 void CPU::op_STY(AddressingMode mode) {
-	writeMem(getOperandAddress(mode), y);
+	writeMem(getOperandAddress(mode, WRITE), y);
 }
 
 void CPU::op_TAX(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	x = a;
 	_setZNFlags(x);
 }
 
 void CPU::op_TAY(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	y = a;
 	_setZNFlags(y);
 }
 
 void CPU::op_TSX(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	x = s;
 	_setZNFlags(x);
 }
 
 void CPU::op_TXA(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	a = x;
 	_setZNFlags(a);
 }
 
 void CPU::op_TXS(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	s = x;
 }
 
 void CPU::op_TYA(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	a = y;
 	_setZNFlags(a);
 }
@@ -600,8 +617,7 @@ void CPU::op_TYA(AddressingMode mode) {
 // UNOFFICIAL OPCODES
 
 void CPU::op_ALR(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr);
+	uint8_t val = readMem(getOperandAddress(mode, READ));
 	a &= val;
 	p.C = (a & 0x01);
 	a >>= 1;
@@ -609,31 +625,27 @@ void CPU::op_ALR(AddressingMode mode) {
 }
 
 void CPU::op_ANC(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	a &= readMem(addr);
+	a &= readMem(getOperandAddress(mode, READ));
 	_setZNFlags(a);
 	p.C = p.N;
 }
 
 void CPU::op_ANC2(AddressingMode mode) {
 	// Functionally identical to ANC
-	uint16_t addr = getOperandAddress(mode);
-	a &= readMem(addr);
+	a &= readMem(getOperandAddress(mode, READ));
 	_setZNFlags(a);
 	p.C = p.N;
 }
 
 void CPU::op_ANE(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr);
+	uint8_t val = readMem(getOperandAddress(mode, READ));
 	a = (a | 0xEE) & x & val;
 	_setZNFlags(a);
 }
 
 void CPU::op_ARR(AddressingMode mode) {
 	// This instruction has very peculiar flag behavior
-	uint16_t addr = getOperandAddress(mode);
-	a &= readMem(addr);
+	a &= readMem(getOperandAddress(mode, READ));
 	uint8_t carry = p.C;
 	a = (a >> 1) | (carry << 7);
 	_setZNFlags(a);
@@ -643,43 +655,42 @@ void CPU::op_ARR(AddressingMode mode) {
 
 void CPU::op_DCP(AddressingMode mode) {
 	// DEC oper + CMP oper
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr) - 1;
+	uint16_t addr = getOperandAddress(mode, RMW);
+	uint8_t val = readMem(addr);
+	writeMem(addr, val); // Dummy write before modify
+	val--;
 	writeMem(addr, val);
 	_compare(a, val);
 }
 
 void CPU::op_ISC(AddressingMode mode) {
 	// INC oper + SBC oper
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr) + 1;
+	uint16_t addr = getOperandAddress(mode, RMW);
+	uint8_t val = readMem(addr);
+	writeMem(addr, val); // Dummy write before modify
+	val++;
 	writeMem(addr, val);
 	_addToAccumulator(val ^ 0xFF);
 }
 
 void CPU::op_LAS(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr) & s;
+	uint8_t val = readMem(getOperandAddress(mode, READ)) & s;
 	a = val;
 	x = val;
 	s = val;
 	_setZNFlags(val);
-	if (pageCrossed) cycles++;
 }
 
 void CPU::op_LAX(AddressingMode mode) {
 	// LDA oper + LDX oper
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr);
+	uint8_t val = readMem(getOperandAddress(mode, READ));
 	a = val;
 	x = val;
 	_setZNFlags(val);
-	if (pageCrossed) cycles++;
 }
 
 void CPU::op_LXA(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr);
+	uint8_t val = readMem(getOperandAddress(mode, READ));
 	a = (a | 0xEE) & val;
 	x = a;
 	_setZNFlags(a);
@@ -687,8 +698,9 @@ void CPU::op_LXA(AddressingMode mode) {
 
 void CPU::op_RLA(AddressingMode mode) {
 	// ROL oper + AND oper
-	uint16_t addr = getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode, RMW);
 	uint8_t val = readMem(addr);
+	writeMem(addr, val); // Dummy write before modify
 	uint8_t carry = p.C;
 	p.C = (val & 0x80) != 0;
 	val = (val << 1) | carry;
@@ -699,8 +711,9 @@ void CPU::op_RLA(AddressingMode mode) {
 
 void CPU::op_RRA(AddressingMode mode) {
 	// ROR oper + ADC oper
-	uint16_t addr = getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode, RMW);
 	uint8_t val = readMem(addr);
+	writeMem(addr, val); // Dummy write before modify
 	uint8_t carry = p.C;
 	p.C = (val & 0x01) != 0;
 	val = (val >> 1) | (carry << 7);
@@ -709,13 +722,11 @@ void CPU::op_RRA(AddressingMode mode) {
 }
 
 void CPU::op_SAX(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	writeMem(addr, a & x);
+	writeMem(getOperandAddress(mode, WRITE), a & x);
 }
 
 void CPU::op_SBX(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
-	uint8_t val = readMem(addr);
+	uint8_t val = readMem(getOperandAddress(mode, READ));
 	uint16_t diff = (a & x) - val;
 	p.C = (diff < 0x100);
 	x = diff & 0xFF;
@@ -723,7 +734,7 @@ void CPU::op_SBX(AddressingMode mode) {
 }
 
 void CPU::op_SHA(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode, WRITE);
 	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
 	uint8_t val = a & x & (baseHighByte + 1);
 	if (pageCrossed) {
@@ -733,7 +744,7 @@ void CPU::op_SHA(AddressingMode mode) {
 }
 
 void CPU::op_SHX(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode, WRITE);
 	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
 	uint8_t val = x & (baseHighByte + 1);
 	if (pageCrossed) {
@@ -743,7 +754,7 @@ void CPU::op_SHX(AddressingMode mode) {
 }
 
 void CPU::op_SHY(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode, WRITE);
 	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
 	uint8_t val = y & (baseHighByte + 1);
 	if (pageCrossed) {
@@ -754,8 +765,9 @@ void CPU::op_SHY(AddressingMode mode) {
 
 void CPU::op_SLO(AddressingMode mode) {
 	// ASL oper + ORA oper
-	uint16_t addr = getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode, RMW);
 	uint8_t val = readMem(addr);
+	writeMem(addr, val); // Dummy write before modify
 	p.C = (val & 0x80) != 0;
 	val <<= 1;
 	writeMem(addr, val);
@@ -765,8 +777,9 @@ void CPU::op_SLO(AddressingMode mode) {
 
 void CPU::op_SRE(AddressingMode mode) {
 	// LSR oper + EOR oper
-	uint16_t addr = getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode, RMW);
 	uint8_t val = readMem(addr);
+	writeMem(addr, val); // Dummy write before modify
 	p.C = (val & 0x01) != 0;
 	val >>= 1;
 	writeMem(addr, val);
@@ -775,7 +788,7 @@ void CPU::op_SRE(AddressingMode mode) {
 }
 
 void CPU::op_TAS(AddressingMode mode) {
-	uint16_t addr = getOperandAddress(mode);
+	uint16_t addr = getOperandAddress(mode, WRITE);
 	s = a & x;
 	uint8_t baseHighByte = (addr >> 8) - (pageCrossed ? 1 : 0);
 	uint8_t val = s & (baseHighByte + 1);
@@ -787,11 +800,11 @@ void CPU::op_TAS(AddressingMode mode) {
 
 void CPU::op_USBC(AddressingMode mode) {
 	// Same as official SBC, just an alternate opcode
-	uint16_t addr = getOperandAddress(mode);
-	_addToAccumulator(readMem(addr) ^ 0xFF);
+	_addToAccumulator(readMem(getOperandAddress(mode, READ)) ^ 0xFF);
 }
 
 void CPU::op_JAM(AddressingMode mode) {
+	readMem(pc); // Dummy read
 	jammed = true;
 }
 
@@ -803,7 +816,7 @@ void CPU::reset() {
 	p.I = 1;
 	p.D = 0;
 	pc = readMem16(RESET_VECTOR);
-	cycles = 7;
+	cycles += 5;
 	jammed = false;
 }
 
@@ -815,17 +828,16 @@ void CPU::powerOn() {
 		}
 	}
 
+	cycles = 0;
+
 	a = 0;
 	x = 0;
 	y = 0;
 
 	p.raw = 0x24;
-	s = 0xFD;
+	s = 0x00;
 
-	pc = readMem16(RESET_VECTOR);
-
-	cycles = 7;
-	jammed = false;
+	reset();
 }
 
 bool CPU::clock() {
@@ -858,9 +870,9 @@ bool CPU::clock() {
 	if (enableCpuLog) {
 		// Read up to 3 operand bytes for logging (safe: don't advance pc here)
 		uint8_t opcodeBytes[3] = {0, 0, 0};
-		opcodeBytes[0] = readMem(instrPc);
-		opcodeBytes[1] = readMem(instrPc + 1);
-		opcodeBytes[2] = readMem(instrPc + 2);
+		opcodeBytes[0] = bus->read(instrPc);
+		opcodeBytes[1] = bus->read(instrPc + 1);
+		opcodeBytes[2] = bus->read(instrPc + 2);
 
 		// Determine byte count from the addressing mode table
 		auto mode = OPCODE_ADDRESSING_MAP[opcode];
@@ -884,11 +896,11 @@ bool CPU::clock() {
 			default:
 				byteCount = 1;
 		}
-		logInstruction(instrPc, opcode, opcodeBytes, byteCount);
+		logInstruction(instrPc, opcode, opcodeBytes, byteCount, prev_cycles);
 	}
 
 	// Add base cycles for this instruction
-	cycles += OPCODE_CYCLES_MAP[opcode];
+	// cycles += OPCODE_CYCLES_MAP[opcode];
 
 	runInstruction(opcode);
 	int diff_cycles = cycles - prev_cycles;
@@ -900,7 +912,7 @@ void CPU::triggerNMI() {
 	_interrupt(VECTOR_NMI);
 }
 
-void CPU::logInstruction(uint16_t instrPc, uint8_t opcode, const uint8_t* opcodeBytes, size_t byteCount) {
+void CPU::logInstruction(uint16_t instrPc, uint8_t opcode, const uint8_t* opcodeBytes, size_t byteCount, long int prev_cycles) {
 	// Open cpu.log for append each time to keep implementation simple and
 	// avoid holding a global file handle. This is fine for debugging but
 	// could be optimized later.
@@ -931,7 +943,7 @@ void CPU::logInstruction(uint16_t instrPc, uint8_t opcode, const uint8_t* opcode
 	}
 	p_bits[8] = '\0';
 	fprintf(f, " a:%02X x:%02X y:%02X p:%s sp:%02X cyc:%ld\n",
-			a, x, y, p_bits, s, cycles);
+			a, x, y, p_bits, s, prev_cycles);
 
 	fclose(f);
 }
@@ -1211,8 +1223,6 @@ void CPU::runInstruction(uint8_t opcode) {
 		case 0xfe: op_INC(ABX); break; // INC (0xFE) | 3 | 7  | absolute,X
 		case 0xff: op_ISC(ABX); break; // ISC (0xFF) | 3 | 7  | absolute,X
 
-		default:
-			std::cout << "Unknown opcode: " << std::hex << (int)opcode << std::dec << "\n";
-			break;
+		default: break;
 	}
 }

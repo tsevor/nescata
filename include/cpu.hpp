@@ -3,8 +3,7 @@
 #include <cstdint>
 #include <iostream>
 
-// Forward declaration
-class Bus;
+#include "bus.hpp"
 
 union StatusRegister {
 	struct {
@@ -24,10 +23,15 @@ union StatusRegister {
 
 class CPU {
 private:
-	// CONSTANTS
-
 
 	// ENUMS
+	
+	enum AccessType {
+		READ,
+		WRITE,
+		RMW
+	};
+	
 	enum AddressingMode {
 		IMP, // implied
 		ACC, // accumulator
@@ -91,8 +95,11 @@ private:
 		"BCS", "LDA", "JAM", "LAX", "LDY", "LDA", "LDX", "LAX", "CLV", "LDA", "TSX", "LAS", "LDY", "LDA", "LDX", "LAX",
 		"CPY", "CMP", "NOP", "DCP", "CPY", "CMP", "DEC", "DCP", "INY", "CMP", "DEX", "SBX", "CPY", "CMP", "DEC", "DCP",
 		"BNE", "CMP", "JAM", "DCP", "NOP", "CMP", "DEC", "DCP", "CLD", "CMP", "NOP", "DCP", "NOP", "CMP", "DEC", "DCP",
-		"CPX", "SBC", "NOP", "ISC", "CPX", "SBC", "INC", "ISC", "INX", "SBC", "NOP", "USB", "CPX", "SBC", "INC", "ISC",
-		"BEQ", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC", "SED", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC",
+		
+		// "CPX", "SBC", "NOP", "ISC", "CPX", "SBC", "INC", "ISC", "INX", "SBC", "NOP", "USB", "CPX", "SBC", "INC", "ISC",
+		"CPX", "SBC", "NOP", "ISB", "CPX", "SBC", "INC", "ISB", "INX", "SBC", "NOP", "SBC", "CPX", "SBC", "INC", "ISB", // match nestest
+		// "BEQ", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC", "SED", "SBC", "NOP", "ISC", "NOP", "SBC", "INC", "ISC",
+		"BEQ", "SBC", "NOP", "ISB", "NOP", "SBC", "INC", "ISB", "SED", "SBC", "NOP", "ISB", "NOP", "SBC", "INC", "ISB", // match nestest
 	};
 
 	inline static const AddressingMode OPCODE_ADDRESSING_MAP[256] = {
@@ -100,7 +107,7 @@ private:
 		IMP, INX, IMP, INX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS, // 0
 		REL, INY, IMP, INY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX, // 1
 		ABS, INX, IMP, INX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS, // 2
-		REL, INY, IMP, INY, ZPX, ZPX, ZPX, ZPX, IMP, INY, IMP, ABY, ABX, ABX, ABX, ABX, // 3
+		REL, INY, IMP, INY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX, // 3
 		IMP, INX, IMP, INX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, ABS, ABS, ABS, ABS, // 4
 		REL, INY, IMP, INY, ZPX, ZPX, ZPX, ZPX, IMP, ABY, IMP, ABY, ABX, ABX, ABX, ABX, // 5
 		IMP, INX, IMP, INX, ZPG, ZPG, ZPG, ZPG, IMP, IMM, ACC, IMM, IND, ABS, ABS, ABS, // 6
@@ -183,7 +190,7 @@ private:
 
 	// helpers
 
-	uint16_t getOperandAddress(AddressingMode mode);
+	uint16_t getOperandAddress(AddressingMode mode, AccessType type);
 
 	// specific helpers
 
@@ -303,6 +310,6 @@ public:
 	// Logging helper: write a single-line instruction trace to cpu.log when
 	// `enableCpuLog` is true. Format example:
 	// C000 4C F5 C5 a:00, x:00, y:00, p:24, sp:FD cyc:7
-	void logInstruction(uint16_t instrPc, uint8_t opcode, const uint8_t* opcodeBytes, size_t byteCount);
+	void logInstruction(uint16_t instrPc, uint8_t opcode, const uint8_t* opcodeBytes, size_t byteCount, long int prev_cycles);
 
 };
