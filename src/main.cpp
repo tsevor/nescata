@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
 
 	core->connectCart(cart);
 	core->setController1(STANDARD);
-	// core.setController2(STANDARD);
+	// core->setController2(STANDARD);
 	core->run();
 	return 0;
 }
