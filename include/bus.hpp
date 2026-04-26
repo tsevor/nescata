@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <unordered_map>
 
 // Forward declarations
 class APU;
@@ -24,8 +23,7 @@ public:
 	
 	bool* irqLine = nullptr;
 
-	bool cheatsEnabled = false;
-	std::unordered_map<uint16_t, uint8_t> cheats;
+	int16_t cheats[0x10000]; // 0-255, -1 means no
 
 	Bus();
 

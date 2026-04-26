@@ -506,7 +506,6 @@ void Core::parseCommand(std::string command) {
 				uint16_t addr = a & 0xFFFF;
 				uint8_t value = v & 0xFF;
 				addCheat(addr, value);
-				bus.cheatsEnabled = true;
 				std::ostringstream oss;
 				oss << "Cheat at 0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << addr
 					<< " set to 0x" << std::setw(2) << value;
@@ -522,10 +521,12 @@ void Core::parseCommand(std::string command) {
 		// }
 	} else if (tokens[0] == "cheats") {
 		if (tokens.size() == 1) {
-			for (std::pair<uint16_t, uint8_t> cheat : bus.cheats) {
+			for (int i = 0; i < 0x10000; i++) {
+				if (bus.cheats[i] == -1)
+					continue;
 				std::ostringstream oss;
 				oss << std::hex << std::uppercase << std::setfill('0') << std::setw(4)
-					<< "0x" << cheat.first << " = 0x" << std::setw(2) << cheat.second;
+					<< "0x" << i << " = 0x" << std::setw(2) << bus.cheats[i];
 				addMessage(oss.str(), 0xFFFFFF00);
 			}
 		}
@@ -534,10 +535,7 @@ void Core::parseCommand(std::string command) {
 			try {
 				unsigned long a = std::stoul(tokens[1], nullptr, 0);
 				uint16_t addr = a & 0xFFFF;
-				bus.cheats.erase(addr);
-				if (bus.cheats.empty()) {
-					bus.cheatsEnabled = false;
-				}
+				bus.cheats[addr] = -1;
 				std::ostringstream oss;
 				oss << "removed cheat at 0x" << std::hex << std::uppercase
 					<< std::setfill('0') << std::setw(4) << addr;

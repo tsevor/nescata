@@ -7,6 +7,9 @@
 Bus::Bus() {
 	// Initialize memory
 	std::fill(std::begin(memory), std::end(memory), 0);
+	for (int i = 0; i < 0x10000; i++) {
+		cheats[i] = -1;
+	}
 	cart = nullptr; // No cartridge loaded
 }
 
@@ -18,11 +21,8 @@ void Bus::clearMem() {
 uint8_t Bus::read(uint16_t addr) {
 
 	// check if there's a cheat for the address
-	if (cheatsEnabled) {
-		auto it = cheats.find(addr);
-		if (it != cheats.end()) {
-			return it->second;
-		}
+	if (cheats[addr] > -1) {
+		return cheats[addr];
 	}
 
 	// faster to just pull it out of the switch
