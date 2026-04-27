@@ -29,6 +29,7 @@ public:
 	void clockLength();
 	
 	void reset();
+	void powerOn();
 
 	uint8_t getOutput();
 };

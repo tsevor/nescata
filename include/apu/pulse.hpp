@@ -44,8 +44,7 @@ public:
 	void clockSweep();
 	
 	void reset();
+	void powerOn();
 
 	uint8_t getOutput();
-
-
 };

@@ -9,7 +9,12 @@ void DMC::write(uint16_t addr, uint8_t val) {
 	switch (addr) {
 		case 0x0000: // $4010
 			irqEnable = (val >> 7) & 0x01;
-			if (!irqEnable) irqPending = false;
+			if (!irqEnable) {
+				irqPending = false;
+				if (frameIrqRef && !(*frameIrqRef)) {
+					*(bus->irqLine) = false; 
+				}
+			}
 			loopFlag = (val >> 6) & 0x01;
 			timerLoad = rateTable[val & 0x0F];
 			break;
@@ -97,7 +102,12 @@ uint8_t DMC::getOutput() {
 }
 
 void DMC::reset() {
+	// DMC direct load ($4011)[3] 	0 	[$4011] &= 1 
 	enabled = false;
+	
+}
+
+void DMC::powerOn() {
 	irqEnable = false;
 	irqPending = false;
 	loopFlag = false;

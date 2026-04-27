@@ -42,17 +42,21 @@ private:
 	int frameCounterResetDelay = 0;
 
 public:
-	APU() {}
+	APU() {
+		powerOn();
+	}
 
 	void clockQuarterFrame();
 	void clockHalfFrame();
 
-	void reset();
 	void step(int cpuCycles);
 	uint8_t read(uint16_t addr);
 	void write(uint16_t addr, uint8_t val);
 
 	int8_t* getBuffer();
+	
+	void reset();
+	void powerOn();
 
 	void connectBus(Bus* busRef);
 };

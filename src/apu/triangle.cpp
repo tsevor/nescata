@@ -70,7 +70,13 @@ uint8_t Triangle::getOutput() {
 }
 
 void Triangle::reset() {
+	// unchanged?
 	enabled = false;
+}
+
+void Triangle::powerOn() {
+	reset();
+	
 	timerLoad = 0;
 	timer = 0;
 	sequenceStep = 0;

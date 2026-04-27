@@ -23,6 +23,8 @@ void Core::run() {
 
 	if (cart) {
 		cpu.powerOn();
+		apu.powerOn();
+		ppu.powerOn();
 	}
 
 	int frameSkipCounter = 0;
@@ -109,6 +111,7 @@ void Core::powerOn() {
 		if (cart->mapper)
 			cart->mapper->reset();
 	cpu.powerOn();
+	apu.powerOn();
 	ppu.powerOn();
 }
 
@@ -118,6 +121,7 @@ void Core::fullReset() {
 		if (cart->mapper)
 			cart->mapper->reset();
 	cpu.powerOn();
+	apu.powerOn();
 	ppu.powerOn();
 }
 

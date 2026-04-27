@@ -1,12 +1,36 @@
 #include "apu.hpp"
 
 void APU::reset() {
-	pulse1.enabled = false;
-	pulse2.enabled = false;
-	sampleIndex = 0;
-	totalCycles = 0;
-	frameCounter = 0;
 
+	write(0x4015, 0x00);
+
+	pulse1.reset();
+	pulse2.reset();
+	triangle.reset();
+	noise.reset();
+	dmc.reset();
+}
+
+void APU::powerOn() {
+	pulse1.powerOn();
+	pulse2.powerOn();
+	triangle.powerOn();
+	noise.powerOn();
+	dmc.powerOn();
+	
+	pulse1.isPulse1 = true;
+	pulse2.isPulse1 = false;
+	
+	dmc.frameIrqRef = &frameIrq;
+
+	totalCycles = 0;
+	frameCounter = 0xFFFFFFFF;
+	frameMode = 0;
+	irqInhibit = false;
+	frameIrq = false;
+
+	sampleIndex = 0;
+	audioTimer = 0.0;
 	mixCycles = 0;
 	p1Sum = 0;
 	p2Sum = 0;
@@ -14,16 +38,7 @@ void APU::reset() {
 	nsSum = 0;
 	dmcSum = 0;
 
-	frameIrq = false;
-	if (!dmc.irqPending) {
-		*(bus->irqLine) = false;
-	}
-
-	pulse1.reset();
-	pulse2.reset();
-	triangle.reset();
-	noise.reset();
-	dmc.reset();
+	frameCounterResetDelay = 0;
 }
 
 uint8_t APU::read(uint16_t addr) {
@@ -35,14 +50,15 @@ uint8_t APU::read(uint16_t addr) {
 		if (noise.lengthCounter > 0) data |= 0x08;
 		if (dmc.bytesRemaining > 0) data |= 0x10;
 		if (frameIrq) data |= 0x40;
-			if (dmc.irqPending) data |= 0x80;
+		if (dmc.irqPending) data |= 0x80;
 
-			frameIrq = false; // Reading $4015 clears the frame IRQ flag
-			if (!dmc.irqPending) {
-				*(bus->irqLine) = false;
-			}
+		frameIrq = false; // Reading $4015 clears the frame IRQ flag
+		if (!dmc.irqPending) {
+			*(bus->irqLine) = false;
 		}
-		return data;
+	}
+
+	return data;
 }
 
 void APU::write(uint16_t addr, uint8_t val) {
@@ -79,6 +95,10 @@ void APU::write(uint16_t addr, uint8_t val) {
 				if (!frameIrq) {
 					*(bus->irqLine) = false;
 				}
+			} else {
+				if (dmc.bytesRemaining == 0) {
+					dmc.restartSample();
+				}
 			}
 			break;
 		case 0x4017:
@@ -92,6 +112,10 @@ void APU::write(uint16_t addr, uint8_t val) {
 
 			frameCounterResetDelay = (totalCycles % 2 == 0) ? 3 : 4;
 
+			if (frameMode == 1) {
+				clockQuarterFrame();
+				clockHalfFrame();
+			}
 			break;
 	}
 }
@@ -99,12 +123,10 @@ void APU::write(uint16_t addr, uint8_t val) {
 void APU::step(int cpuCycles) {
 	for (int i = 0; i < cpuCycles; i++) {
 		// Handle the $4017 reset delay
-		// In APU::step
 		if (frameCounterResetDelay > 0) {
 			frameCounterResetDelay--;
 			if (frameCounterResetDelay == 0) {
 				frameCounter = 0;
-				// Apply the delayed Mode 1 clocks here!
 				if (frameMode == 1) {
 					clockQuarterFrame();
 					clockHalfFrame();

@@ -11,6 +11,8 @@ public:
 
 	bool enabled = false;
 	Bus* bus = nullptr;
+	
+	bool* frameIrqRef = nullptr;
 
 	bool irqEnable = false;
 	bool irqPending = false;
@@ -42,6 +44,7 @@ public:
 	uint8_t getOutput();
 	
 	void reset();
+	void powerOn();
 
 	void connectBus(Bus* bus);
 };

@@ -40,9 +40,7 @@ void Pulse::write(uint16_t addr, uint8_t val) {
 			timerLoad = (timerLoad & 0x00FF) | ((val & 0x07) << 8);
 			sequenceStep = 0;
 			envelopeStart = true;
-			if (enabled) {
-				lengthCounter = lengthTable[val >> 3];
-			}
+			lengthCounter = lengthTable[val >> 3];
 			break;
 	}
 }
@@ -123,7 +121,13 @@ uint8_t Pulse::getOutput() {
 }
 
 void Pulse::reset() {
+	// unchanged?
 	enabled = false;
+}
+
+void Pulse::powerOn() {
+	reset();
+	
 	dutyCycle = 0;
 	timerLoad = 0;
 	timer = 0;
@@ -134,12 +138,12 @@ void Pulse::reset() {
 	envelopePeriod = 0;
 	envelopeDivider = 0;
 	envelopeDecay = 0;
-	lengthEnable = true;
-	lengthCounter = 0;
 	sweepEnabled = false;
 	sweepReload = false;
 	sweepNegate = false;
 	sweepPeriod = 0;
 	sweepDivider = 0;
 	sweepShift = 0;
+	lengthEnable = true;
+	lengthCounter = 0;
 }

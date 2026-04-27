@@ -84,6 +84,11 @@ uint8_t Noise::getOutput() {
 
 void Noise::reset() {
 	enabled = false;
+}
+
+void Noise::powerOn() {
+	reset();
+
 	shiftRegister = 1;
 	mode = false;
 	timer = 0;
