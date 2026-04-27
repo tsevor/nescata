@@ -74,38 +74,27 @@ double Window::updateSurface(double emulationSpeed, bool skipRender) {
 	}
 
 	static uint64_t lastTime = SDL_GetPerformanceCounter();
-	uint64_t currentTime;
-	double targetFrameTime = (1.0 / 60.0) / emulationSpeed; // Target time in SECONDS
-	double elapsedTime;
+	uint64_t freq = SDL_GetPerformanceFrequency();
+	
+	// Exactly 60.0 FPS
+	uint64_t targetTicks = (uint64_t)((freq / 60.0) / emulationSpeed);
 
-	// Spin-lock loop for microsecond accuracy
 	while (true) {
-		currentTime = SDL_GetPerformanceCounter();
-		elapsedTime = (double)(currentTime - lastTime) / SDL_GetPerformanceFrequency();
+		uint64_t currentTime = SDL_GetPerformanceCounter();
+		uint64_t deltaTicks = currentTime - lastTime;
 
-		if (elapsedTime >= targetFrameTime) {
-			break;
-		}
+		// Break the loop as soon as we hit or exceed the target ticks
+		if (deltaTicks >= targetTicks) break;
 
-		// If we have more than 2 milliseconds to wait, yield to the OS to save CPU.
-		// Otherwise, burn CPU cycles in the while loop to hit the exact microsecond.
-		if (targetFrameTime - elapsedTime > 0.002) {
+		// Yield to the OS if we have more than 2ms remaining to save CPU
+		if ((targetTicks - deltaTicks) * 1000 / freq > 2) {
 			SDL_Delay(1);
 		}
 	}
 
-	// Do NOT set lastTime = SDL_GetPerformanceCounter().
-	// Add the target time to the last time to ensure absolute sync over time,
-	// absorbing any micro-stutters.
-	lastTime += (uint64_t)(targetFrameTime * SDL_GetPerformanceFrequency());
+	lastTime = SDL_GetPerformanceCounter();
 
-	// If the emulator falls severely behind (e.g. window was dragged), reset the clock
-	// so it doesn't run at 1000 FPS trying to catch up.
-	if ((SDL_GetPerformanceCounter() - lastTime) > SDL_GetPerformanceFrequency()) {
-		lastTime = SDL_GetPerformanceCounter();
-	}
-	
-	return elapsedTime;
+	return (double)targetTicks / freq;
 }
 
 void Window::closeWindow() {

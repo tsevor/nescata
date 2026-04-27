@@ -31,7 +31,9 @@ void Core::run() {
 	bool shouldRenderVisuals = true;
 
 	while (true) {
-		if (paused || emulationSpeed == 0.0 || !cart) {
+		bool haltAudio = paused || emulationSpeed == 0.0 || !cart;
+		window.pauseAudio(haltAudio);
+		if (haltAudio) {
 			// paused
 			if (!passFrame || !cart) {
 				SDL_Delay(100);
@@ -62,17 +64,30 @@ void Core::run() {
 			}
 
 			// AUDIO LOGIC
-			if (emulationSpeed > 0.1 && emulationSpeed < 100) {
+			if (emulationSpeed >= 0.1 && emulationSpeed <= 100) {
 				int8_t* audioBuffer = apu.getBuffer();
 				int scaledBufferLen = 735 / emulationSpeed;
 				double targetBufferLen = 735.0 / emulationSpeed;
+
+				uint32_t queuedAudio = window.getQueuedAudioSize();
+				
+				double expectedFrameSize = 735.0 / emulationSpeed;
+				uint32_t lowerBound = std::max(2048, (int)(expectedFrameSize * 2.0));
+				uint32_t upperBound = std::max(4096, (int)(expectedFrameSize * 4.0));
+
+				if (queuedAudio > upperBound) {
+					targetBufferLen -= (1.0 / emulationSpeed);
+				} else if (queuedAudio < lowerBound) {
+					targetBufferLen += (1.0 / emulationSpeed);
+				}
+
 				bufferCompensation += targetBufferLen - scaledBufferLen;
-				if (bufferCompensation > 1.0) {
+				if (bufferCompensation > 0.5) {
 					scaledBufferLen++;
-					bufferCompensation -= 1.0;
-				} else if (bufferCompensation < -1.0) {
+					bufferCompensation -= 0.5;
+				} else if (bufferCompensation < -0.5) {
 					scaledBufferLen--;
-					bufferCompensation += 1.0;
+					bufferCompensation += 0.5;
 				}
 
 				for (int i = 0; i < scaledBufferLen; i++) {
