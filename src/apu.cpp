@@ -18,7 +18,7 @@ void APU::reset() {
 	if (!dmc.irqPending) {
 		*(bus->irqLine) = false;
 	}
-	
+
 	pulse1.reset();
 	pulse2.reset();
 	triangle.reset();
@@ -95,8 +95,6 @@ void APU::write(uint16_t addr, uint8_t val) {
 			break;
 	}
 }
-
-#include <iostream>
 
 void APU::step(int cpuCycles) {
 	for (int i = 0; i < cpuCycles; i++) {
@@ -203,7 +201,7 @@ void APU::step(int cpuCycles) {
 				}
 
 				buffer[sampleIndex] = static_cast<int8_t>((pulseOut + tndOut) * 255.0 - 128.0);
-				
+
 				sampleIndex++;
 			}
 
@@ -216,7 +214,6 @@ void APU::step(int cpuCycles) {
 		}
 	}
 }
-
 
 int8_t* APU::getBuffer() {
 	// if the frame ended early pad the rest of the buffer with the last audio state

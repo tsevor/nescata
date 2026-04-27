@@ -4,27 +4,38 @@
 #include "cpu.hpp"
 
 PPU::PPU() {
-	reset();
+	powerOn();
 }
 
 void PPU::reset() {
-	// Initialize PPU state and memory to deterministic values
-	cycle = 0;
-	dot = 0;
-	scanline = 0;
-	frame = 0;
-	buffer = 0;
-	oamaddr = 0;
-	oamdata = 0;
 	ctrl.raw = 0;
 	mask.raw = 0;
-	stat.raw = 0;
-	w = true;
+	x = 0;
+	t.raw = 0;
+	w = 0;
+	buffer = 0;
+}
 
-	// Clear VRAM and OAM
-	// VRAM expanded to 0x1000 to safely buffer 4-screen mirroring configs
-	for (int i = 0; i < 0x1000; i++) vram[i] = 0;
-	for (int i = 0; i < 256; i++) oam.raw[i] = 0;
+void PPU::powerOn() {
+	cycle = 0;
+	frame = 0;
+	scanline = 261; // Start at pre-render line
+	dot = 0;
+
+	reset();
+	stat.raw = 0;
+	oamaddr = 0;
+	v.raw = 0;
+	for (int i = 0; i < 32; i++) {
+		palette[i] = 0;
+		decodedPalette[i] = 0xFF000000; // Default to transparent black
+	}
+	for (int i = 0; i < 64; i++) {
+		oam.sprites[i] = {0, 0, 0, 0};
+	}
+	for (int i = 0; i < 0x1000; i++) {
+		vram[i] = 0;
+	}
 }
 
 bool PPU::step(int cycles) {

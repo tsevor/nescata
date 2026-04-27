@@ -76,7 +76,7 @@ void Core::run() {
 				for (int i = 0; i < scaledBufferLen; i++) {
 					scaledAudioBuffer[i] = audioBuffer[(i * 735) / scaledBufferLen] * audioVolume;
 				}
-				
+
 				window.queueAudio(scaledAudioBuffer, scaledBufferLen);
 			}
 
@@ -96,19 +96,29 @@ void Core::run() {
 }
 
 void Core::reset() {
+	if (cart)
+		if (cart->mapper)
+			cart->mapper->reset();
+	cpu.reset();
+	apu.reset();
+	ppu.reset();
+}
+
+void Core::powerOn() {
+	if (cart)
+		if (cart->mapper)
+			cart->mapper->reset();
+	cpu.powerOn();
+	ppu.powerOn();
+}
+
+void Core::fullReset() {
 	cpu.reset();
 	if (cart)
 		if (cart->mapper)
 			cart->mapper->reset();
-	apu.reset();
-}
-
-void Core::powerOn() {
 	cpu.powerOn();
-}
-
-void Core::fullReset() {
-	cpu.powerOn();
+	ppu.powerOn();
 }
 
 void Core::handleWindowEvents() {

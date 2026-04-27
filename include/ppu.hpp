@@ -49,6 +49,7 @@ public:
 	bool skipFrame = false;
 
 	void reset();
+	void powerOn();
 
 	// PPU Register Read/Writes
 
