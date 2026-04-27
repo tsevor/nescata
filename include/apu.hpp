@@ -42,9 +42,7 @@ private:
 	int frameCounterResetDelay = 0;
 
 public:
-	APU() {
-		powerOn();
-	}
+	APU();
 
 	void clockQuarterFrame();
 	void clockHalfFrame();
@@ -54,7 +52,7 @@ public:
 	void write(uint16_t addr, uint8_t val);
 
 	int8_t* getBuffer();
-	
+
 	void reset();
 	void powerOn();
 

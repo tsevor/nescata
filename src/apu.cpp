@@ -1,5 +1,7 @@
 #include "apu.hpp"
 
+APU::APU() {}
+
 void APU::reset() {
 
 	write(0x4015, 0x00);

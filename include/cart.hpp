@@ -66,6 +66,9 @@ public:
 
 	int mirrorNametable(int ntIdx);
 
+	void connectBus(Bus* busRef);
+	void disconnectBus();
+
 private:
 	void pickMapper(int mapperID);
 };

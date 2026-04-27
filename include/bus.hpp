@@ -22,6 +22,7 @@ public:
 	Controller* controller2 = nullptr;
 
 	bool* irqLine = nullptr;
+
 	uint8_t openBus = 0;
 	uint8_t ppuOpenBus = 0;
 

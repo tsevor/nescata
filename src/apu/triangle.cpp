@@ -76,14 +76,15 @@ void Triangle::reset() {
 
 void Triangle::powerOn() {
 	reset();
-	
+
 	timerLoad = 0;
 	timer = 0;
 	sequenceStep = 0;
 	lengthEnable = true;
 	lengthCounter = 0;
+	// seeded because some games break without it
 	linearControl = false;
 	linearReload = false;
-	linearLoad = 0;
-	linearCounter = 0;
+	linearLoad = 0x7F;
+	linearCounter = 0x7F;
 }

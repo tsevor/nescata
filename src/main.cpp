@@ -11,6 +11,11 @@ int main(int argc, char* argv[]) {
 	Core* core = new Core();
 	Cart* cart = new Cart(argc == 2 ? argv[1] : "");
 
+	if (cart->loadStatus != Cart::LOAD_SUCCESS) {
+		delete cart; // the core can handle a nullptr
+		cart = nullptr;
+	}
+
 	core->connectCart(cart);
 	core->setController1(STANDARD);
 	// core->setController2(STANDARD);

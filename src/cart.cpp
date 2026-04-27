@@ -143,3 +143,11 @@ void Cart::pickMapper(int mapperID) {
 			break;
 	}
 }
+
+void Cart::connectBus(Bus* busRef) {
+	bus = busRef;
+}
+
+void Cart::disconnectBus() {
+	bus = nullptr;
+}

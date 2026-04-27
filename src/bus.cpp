@@ -6,16 +6,16 @@
 
 Bus::Bus() {
 	// Initialize memory
-	std::fill(std::begin(memory), std::end(memory), 0);
+	clearMem();
 	for (int i = 0; i < 0x10000; i++) {
 		cheats[i] = -1;
 	}
-	cart = nullptr; // No cartridge loaded
 }
 
 void Bus::clearMem() {
-	// used when a full reset is needed
-	std::fill(std::begin(memory), std::end(memory), 0);
+	for (int i = 0; i < 0x800; i++) {
+		memory[i] = 0;
+	}	
 }
 
 uint8_t Bus::read(uint16_t addr) {

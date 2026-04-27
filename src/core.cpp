@@ -1,4 +1,5 @@
 #include "core.hpp"
+#include <cmath>
 
 
 Core::Core() {
@@ -22,9 +23,8 @@ void Core::run() {
 	}
 
 	if (cart) {
-		cpu.powerOn();
-		apu.powerOn();
-		ppu.powerOn();
+		reset();
+		powerOn();
 	}
 
 	int frameSkipCounter = 0;
@@ -113,16 +113,17 @@ void Core::powerOn() {
 	cpu.powerOn();
 	apu.powerOn();
 	ppu.powerOn();
+	bus.clearMem();
 }
 
 void Core::fullReset() {
-	cpu.reset();
 	if (cart)
 		if (cart->mapper)
 			cart->mapper->reset();
 	cpu.powerOn();
 	apu.powerOn();
 	ppu.powerOn();
+	bus.clearMem();
 }
 
 void Core::handleWindowEvents() {
@@ -190,14 +191,12 @@ void Core::handleKeyboardEvent(SDL_KeyboardEvent keyEvent) {
 	switch (keyEvent.keysym.sym) {
 		case SDLK_r: // reset
 			if (pressed) {
+				reset();
 				if (mod & (KMOD_LSHIFT | KMOD_RSHIFT)) {
 					// reset everything
-					bus.clearMem();
-					cpu.powerOn();
-					ppu.reset();
-					cart->mapper->reset();
+					fullReset();
+					addMessage("Full Reset", 0xFFFFFF00);
 				}
-				reset();
 			}
 			break;
 		case SDLK_ESCAPE: // quit
@@ -733,6 +732,10 @@ void Core::addCheat(uint16_t addr, uint8_t val) {
 }
 
 void Core::connectCart(Cart* cart) {
+	if (!cart) {
+		addMessage("No ROM provided!", 0xFFFF0000);
+		return;
+	}
 
 	if (cart->loadStatus != Cart::LOAD_SUCCESS) {
 		switch (cart->loadStatus) {
@@ -767,6 +770,8 @@ void Core::connectCart(Cart* cart) {
 	comp.connectCart(cart);
 	ppu.connectCart(cart);
 
+	cart->connectBus(&bus);
+
 	addMessage("ROM loaded: " + cart->filename, 0xFF00FF00);
 
 	// fullReset();
@@ -774,7 +779,9 @@ void Core::connectCart(Cart* cart) {
 }
 
 void Core::disconnectCart() {
-	this->cart = nullptr;
+	if (!cart) return;
+	cart->disconnectBus();
+	cart = nullptr;
 	bus.disconnectCart();
 	comp.disconnectCart();
 	ppu.disconnectCart();
