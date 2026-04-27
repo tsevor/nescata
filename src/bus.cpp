@@ -55,7 +55,7 @@ uint8_t Bus::read(uint16_t addr) {
 				openBus = read(0x2000 | (addr & 0x7));
 				break;
 			case 0x4015:
-				openBus = (apu->read(0x4015) & 0xDF) | (openBus & 0x20);
+				return (apu->read(0x4015) & 0xDF) | (openBus & 0x20);
 				break;
 			case 0x4016:
 				openBus = (controller1->read() & 0x1F) | (openBus & 0xE0);
