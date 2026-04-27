@@ -17,10 +17,10 @@ void APU::powerOn() {
 	triangle.powerOn();
 	noise.powerOn();
 	dmc.powerOn();
-	
+
 	pulse1.isPulse1 = true;
 	pulse2.isPulse1 = false;
-	
+
 	dmc.frameIrqRef = &frameIrq;
 
 	totalCycles = 0;
@@ -111,11 +111,6 @@ void APU::write(uint16_t addr, uint8_t val) {
 			}
 
 			frameCounterResetDelay = (totalCycles % 2 == 0) ? 3 : 4;
-
-			if (frameMode == 1) {
-				clockQuarterFrame();
-				clockHalfFrame();
-			}
 			break;
 	}
 }

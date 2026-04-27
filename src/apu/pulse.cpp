@@ -40,7 +40,9 @@ void Pulse::write(uint16_t addr, uint8_t val) {
 			timerLoad = (timerLoad & 0x00FF) | ((val & 0x07) << 8);
 			sequenceStep = 0;
 			envelopeStart = true;
-			lengthCounter = lengthTable[val >> 3];
+			if (enabled) {
+				lengthCounter = lengthTable[val >> 3];
+			}
 			break;
 	}
 }
@@ -127,7 +129,7 @@ void Pulse::reset() {
 
 void Pulse::powerOn() {
 	reset();
-	
+
 	dutyCycle = 0;
 	timerLoad = 0;
 	timer = 0;
