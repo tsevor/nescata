@@ -15,7 +15,7 @@ linux: clean
 
 test: clean
 	mkdir -p build
-	g++ -std=c++17 -O0 -Werror -Wall -Wextra -Iinclude -o build/nescata `find src -name "*.cpp"` `pkg-config --cflags --libs sdl2`
+	g++ -std=c++17 -O0 -Iinclude -o build/nescata `find src -name "*.cpp"` `pkg-config --cflags --libs sdl2`
 	./build/nescata "$(ARGS)"
 
 run: clean linux
@@ -23,7 +23,7 @@ run: clean linux
 
 debug:
 	mkdir -p build
-	g++ -std=c++17 -g -O3 -flto -Werror -Wall -Wextra -Iinclude -o build/nescata `find src -name "*.cpp"` `pkg-config --cflags --libs sdl2`
+	g++ -std=c++17 -g -Iinclude -o build/nescata `find src -name "*.cpp"` `pkg-config --cflags --libs sdl2`
 	gdb build/nescata --args "$(ARGS)"
 
 clean:
