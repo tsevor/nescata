@@ -44,6 +44,8 @@ private:
 public:
 	APU();
 
+	bool skipGeneration = true;
+
 	void clockQuarterFrame();
 	void clockHalfFrame();
 

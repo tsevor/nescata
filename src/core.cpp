@@ -51,6 +51,7 @@ void Core::run() {
 
 		// Tell the PPU before the frame begins
 		ppu.skipFrame = !shouldRenderVisuals;
+		apu.skipGeneration = emulationSpeed < 0.1 || emulationSpeed > 20;
 
 		if (cpu.clock()) { // returns true if frame has completed
 
@@ -64,7 +65,7 @@ void Core::run() {
 			}
 
 			// AUDIO LOGIC
-			if (emulationSpeed >= 0.1 && emulationSpeed <= 100) {
+			if (emulationSpeed >= 0.1 && emulationSpeed <= 20) {
 				int8_t* audioBuffer = apu.getBuffer();
 				int scaledBufferLen = 735 / emulationSpeed;
 				double targetBufferLen = 735.0 / emulationSpeed;

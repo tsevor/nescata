@@ -189,6 +189,9 @@ void APU::step(int cpuCycles) {
 			noise.clockTimer();
 		}
 
+		if (skipGeneration)
+			continue;
+		
 		p1Sum += pulse1.getOutput();
 		p2Sum += pulse2.getOutput();
 		trSum += triangle.getOutput();
